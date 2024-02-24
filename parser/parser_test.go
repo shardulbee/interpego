@@ -480,3 +480,114 @@ func TestParsingBooleanExpressions(t *testing.T) {
 		testLiteralExpression(t, stmt.Expression, tt.expected)
 	}
 }
+
+func TestParsingIfExpressions(t *testing.T) {
+	input := `if (x > y) { x } else { y };`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program does not have the right amount of statements. expected 1, got %d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	ifexp, ok := stmt.Expression.(*ast.IfExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not an ast.IfExpression. got=%T", stmt.Expression)
+	}
+
+	if !testInfixExpression(t, ifexp.Condition, "x", ">", "y") {
+		return
+	}
+
+	if len(ifexp.Consequence.Statements) != 1 {
+		t.Fatalf("ifexp.Consequence does not have the right amount of statements. expected 1, got %d", len(ifexp.Consequence.Statements))
+	}
+	consequenceStmt, ok := ifexp.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("ifexp.Consequence.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	if !testIdentifier(t, consequenceStmt.Expression, "x") {
+		return
+	}
+
+	if len(ifexp.Alternative.Statements) != 1 {
+		t.Fatalf("ifexp.Alternative does not have the right amount of statements. expected 1, got %d", len(ifexp.Alternative.Statements))
+	}
+	alternativeStmt, ok := ifexp.Alternative.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("ifexp.Alternative.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	if !testIdentifier(t, alternativeStmt.Expression, "y") {
+		return
+	}
+}
+
+func TestParsingBoolean(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"true;", true},
+		{"false;", false},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program does not have the right amount of statements. expected 1, got %d", len(program.Statements))
+		}
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("program.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
+		}
+
+		testLiteralExpression(t, stmt.Expression, tt.expected)
+	}
+}
+
+func TestParsingIfExpressionsNoAlternative(t *testing.T) {
+	input := `if (x > y) { x };`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program does not have the right amount of statements. expected 1, got %d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	ifexp, ok := stmt.Expression.(*ast.IfExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not an ast.IfExpression. got=%T", stmt.Expression)
+	}
+
+	if !testInfixExpression(t, ifexp.Condition, "x", ">", "y") {
+		return
+	}
+
+	if len(ifexp.Consequence.Statements) != 1 {
+		t.Fatalf("ifexp.Consequence does not have the right amount of statements. expected 1, got %d", len(ifexp.Consequence.Statements))
+	}
+	consequenceStmt, ok := ifexp.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("ifexp.Consequence.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+	if !testIdentifier(t, consequenceStmt.Expression, "x") {
+		return
+	}
+
+	if ifexp.Alternative != nil {
+		t.Fatal("ifexp.Alternative was expected to be nil but it is not")
+	}
+}
