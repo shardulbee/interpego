@@ -63,6 +63,7 @@ func New(lexer *lexer.Lexer) *Parser {
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfExpression)
+	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerInfix(token.EQ, p.parseInfixExpression)
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
@@ -320,4 +321,39 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		p.nextToken()
 	}
 	return stmt
+}
+
+func (p *Parser) parseFunctionLiteral() ast.Expression {
+	fn := &ast.FunctionLiteral{Token: p.curToken}
+
+	if !p.expectAndAdvance(token.LPAREN) {
+		return nil
+	}
+	fn.Parameters = p.parseFunctionParameters()
+
+	if !p.expectAndAdvance(token.LBRACE) {
+		return nil
+	}
+
+	fn.FunctionBody = p.parseBlockStatement()
+
+	return fn
+}
+
+func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+	params := []*ast.Identifier{}
+	for !p.curTokenIs(token.RPAREN) && !p.curTokenIs(token.EOF) {
+		if p.curTokenIs(token.IDENT) {
+			params = append(params, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+		}
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(token.RPAREN) {
+		msg := fmt.Sprintf("expected RPAREN, got=%q", p.curToken.Type)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+
+	return params
 }

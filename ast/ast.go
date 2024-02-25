@@ -180,12 +180,14 @@ func (ie *IfExpression) String() string {
 
 	out.WriteString("if ")
 	out.WriteString(ie.Condition.String())
-	out.WriteString("	")
+	out.WriteString("	{")
 	out.WriteString(ie.Consequence.String())
+	out.WriteString("	}")
 
 	if ie.Alternative != nil {
-		out.WriteString("else ")
+		out.WriteString("else {")
 		out.WriteString(ie.Alternative.String())
+		out.WriteString("	}")
 	}
 	return out.String()
 }
@@ -204,5 +206,34 @@ func (bs *BlockStatement) String() string {
 	for _, s := range bs.Statements {
 		out.WriteString(s.String())
 	}
+	return out.String()
+}
+
+type FunctionLiteral struct {
+	Token        token.Token // the fn token
+	Parameters   []*Identifier
+	FunctionBody *BlockStatement
+}
+
+func (fl *FunctionLiteral) expressionNode() {}
+func (fl *FunctionLiteral) TokenLiteral() string {
+	return fl.Token.Literal
+}
+func (fl *FunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(fl.TokenLiteral())
+	out.WriteString("(")
+
+	for i, p := range fl.Parameters {
+		out.WriteString(p.String())
+		if i != len(fl.Parameters)-1 {
+			out.WriteString(", ")
+		}
+	}
+
+	out.WriteString(") {")
+	out.WriteString(fl.FunctionBody.String())
+	out.WriteString("}")
 	return out.String()
 }
