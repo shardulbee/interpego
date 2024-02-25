@@ -28,6 +28,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
+	token.LPAREN:   CALL,
 }
 
 type Error string
@@ -64,6 +65,7 @@ func New(lexer *lexer.Lexer) *Parser {
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
+	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.EQ, p.parseInfixExpression)
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
@@ -129,9 +131,11 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := ast.ReturnStatement{Token: p.curToken}
-	for !p.curTokenIs(token.SEMICOLON) {
-		p.nextToken()
-	}
+
+	p.nextToken()
+	stmt.ReturnValue = p.parseExpression(LOWEST)
+	p.nextToken()
+
 	return &stmt
 }
 
@@ -143,30 +147,20 @@ func (p *Parser) peekTokenIs(t token.TokenType) bool {
 	return p.peekToken.Type == t
 }
 
-func (p *Parser) expectAndAdvance(t token.TokenType) bool {
-	if p.peekTokenIs(t) {
-		p.nextToken()
-		return true
-	} else {
-		p.peekError(t)
-		return false
-	}
-}
-
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	statement := ast.LetStatement{Token: p.curToken}
 
-	if !p.expectAndAdvance(token.IDENT) {
+	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
 	statement.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
-	if !p.expectAndAdvance(token.ASSIGN) {
+	if !p.expectPeek(token.ASSIGN) {
 		return nil
 	}
-	for !p.curTokenIs(token.SEMICOLON) {
-		p.nextToken()
-	}
+	p.nextToken()
+	statement.Value = p.parseExpression(LOWEST)
+	p.nextToken()
 
 	return &statement
 }
@@ -268,6 +262,7 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 		p.nextToken()
 		return true
 	} else {
+		p.peekError(t)
 		return false
 	}
 }
@@ -326,12 +321,12 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 func (p *Parser) parseFunctionLiteral() ast.Expression {
 	fn := &ast.FunctionLiteral{Token: p.curToken}
 
-	if !p.expectAndAdvance(token.LPAREN) {
+	if !p.expectPeek(token.LPAREN) {
 		return nil
 	}
 	fn.Parameters = p.parseFunctionParameters()
 
-	if !p.expectAndAdvance(token.LBRACE) {
+	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
 
@@ -356,4 +351,21 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	}
 
 	return params
+}
+
+func (p *Parser) parseCallExpression(left ast.Expression) ast.Expression {
+	call := &ast.CallExpression{Token: p.curToken, Function: left}
+	p.nextToken()
+
+	args := []ast.Expression{}
+	for !p.curTokenIs(token.RPAREN) && !p.curTokenIs(token.EOF) {
+		args = append(args, p.parseExpression(LOWEST))
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		}
+		p.nextToken()
+	}
+
+	call.Arguments = args
+	return call
 }
