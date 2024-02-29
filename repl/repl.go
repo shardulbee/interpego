@@ -3,6 +3,7 @@ package repl
 import (
 	"bufio"
 	"fmt"
+	"interpego/evaluator"
 	"interpego/lexer"
 	"interpego/parser"
 	"io"
@@ -30,7 +31,9 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		io.WriteString(out, program.String())
+		eval := evaluator.Eval(program)
+
+		io.WriteString(out, eval.Inspect())
 		io.WriteString(out, "\n")
 	}
 }
