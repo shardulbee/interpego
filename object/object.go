@@ -8,6 +8,7 @@ const (
 	INTEGER_TYPE = "INTEGER"
 	BOOLEAN_TYPE = "BOOLEAN"
 	NULL_TYPE    = "NULL"
+	RETURN_TYPE  = "RETURN"
 )
 
 type Object interface {
@@ -45,4 +46,15 @@ func (n *Null) Type() ObjectType {
 }
 func (n *Null) Inspect() string {
 	return fmt.Sprintf("null")
+}
+
+type ReturnValue struct {
+	Value Object
+}
+
+func (rv *ReturnValue) Type() ObjectType {
+	return RETURN_TYPE
+}
+func (rv *ReturnValue) Inspect() string {
+	return rv.Value.Inspect()
 }
