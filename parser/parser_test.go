@@ -707,6 +707,20 @@ func TestCallExpressionParsing(t *testing.T) {
 	testInfixExpression(t, callExp.Arguments[2], 4, "+", 5)
 }
 
+func testStringLiteral(t *testing.T, expression ast.Expression, expected string) bool {
+	sl, ok := expression.(*ast.StringLiteral)
+	if !ok {
+		t.Errorf("expression is not an ast.StringLiteral. got=%T", expression)
+		return false
+	}
+
+	if sl.Value != expected {
+		t.Errorf("sl.Value is not %q. got=%q", expected, sl.Value)
+		return false
+	}
+	return true
+}
+
 func TestStringLiteralExpression(t *testing.T) {
 	input := `"thingy";`
 	l := lexer.New(input)
@@ -721,16 +735,34 @@ func TestStringLiteralExpression(t *testing.T) {
 	if !ok {
 		t.Fatalf("program.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
 	}
+	testStringLiteral(t, stmt.Expression, "thingy")
+}
 
-	stringLiteral, ok := stmt.Expression.(*ast.StringLiteral)
+func TestArrayLiteralExpression(t *testing.T) {
+	input := `["hello", 1, 2, fn(x) { x * x }, if (1 == 1) { return false; } else {return true; }, 1 + 1];`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program does not have the right amount of statements. expected 1, got %d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
-		t.Fatalf("exp not *ast.StringLiteral. got=%T", stmt.Expression)
+		t.Fatalf("program.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
 	}
 
-	if stringLiteral.Value != "thingy" {
-		t.Errorf("stringLiteral.Value not %q. got=%q", 5, stringLiteral.Value)
+	arrayLiteral, ok := stmt.Expression.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("exp not *ast.ArrayLiteral. got=%T", stmt.Expression)
 	}
-	if stringLiteral.TokenLiteral() != "thingy" {
-		t.Errorf("stringLiteral.TokenLiteral() not %s. got=%s", "thingy", stringLiteral.TokenLiteral())
+
+	if len(arrayLiteral.Elements) != 6 {
+		t.Fatalf("arrayLiteral does not have the right amount of elements. expected 6, got %d", len(arrayLiteral.Elements))
 	}
+	testStringLiteral(t, arrayLiteral.Elements[0], "hello")
+	testIntegerLiteral(t, arrayLiteral.Elements[1], 1)
+	testIntegerLiteral(t, arrayLiteral.Elements[2], 2)
+	testInfixExpression(t, arrayLiteral.Elements[5], 1, "+", 1)
 }

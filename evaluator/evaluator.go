@@ -85,6 +85,16 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.String{Value: node.Value}
 	case *ast.BooleanLiteral:
 		return nativeBoolToBooleanObject(node.Value)
+	case *ast.ArrayLiteral:
+		var elements []object.Object
+		for _, elem := range node.Elements {
+			result := Eval(elem, env)
+			if isError(result) {
+				return result
+			}
+			elements = append(elements, result)
+		}
+		return &object.Array{Elements: elements}
 	case *ast.Identifier:
 		if val, ok := env.Get(node.Value); ok {
 			return val

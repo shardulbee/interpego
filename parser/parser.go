@@ -64,6 +64,7 @@ func New(lexer *lexer.Lexer) *Parser {
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
+	p.registerPrefix(token.LBRACKET, p.parseArray)
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
@@ -279,6 +280,24 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 		return nil
 	}
 	return exp
+}
+
+func (p *Parser) parseArray() ast.Expression {
+	arr := &ast.ArrayLiteral{Token: p.curToken}
+	var elements []ast.Expression
+
+	p.nextToken()
+	for !p.curTokenIs(token.RBRACKET) && !p.curTokenIs(token.EOF) {
+		exp := p.parseExpression(LOWEST)
+		elements = append(elements, exp)
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		}
+		p.nextToken()
+	}
+
+	arr.Elements = elements
+	return arr
 }
 
 func (p *Parser) parseIfExpression() ast.Expression {

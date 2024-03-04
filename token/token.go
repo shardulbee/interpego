@@ -45,6 +45,8 @@ const (
 	RPAREN    = ")"
 	LBRACE    = "{"
 	RBRACE    = "}"
+	LBRACKET  = "["
+	RBRACKET  = "]"
 
 	// Keywords
 	// Keywords are reserved words that have special meaning in the language.

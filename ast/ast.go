@@ -112,6 +112,27 @@ func (bl *BooleanLiteral) expressionNode()      {}
 func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
 func (bl *BooleanLiteral) String() string       { return bl.Token.Literal }
 
+type ArrayLiteral struct {
+	Elements []Expression
+	Token    token.Token // the '[' token
+}
+
+func (al *ArrayLiteral) expressionNode()      {}
+func (al *ArrayLiteral) TokenLiteral() string { return al.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("[")
+	for i, exp := range al.Elements {
+		out.WriteString(exp.String())
+		if i != len(al.Elements)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString("]")
+	return out.String()
+}
+
 type PrefixExpression struct {
 	Token    token.Token // the prefix token i.e. !, -
 	Operator string

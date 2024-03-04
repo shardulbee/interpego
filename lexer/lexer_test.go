@@ -25,6 +25,7 @@ if (5 < 10) {
 "this is a string";
 "foo bar"
 "foobar"
+["foobar", 1, 2]
    `
 	tests := []struct {
 		expectedType    token.TokenType
@@ -107,6 +108,13 @@ if (5 < 10) {
 		{token.SEMICOLON, ";"},
 		{token.STRING, "foobar"},
 		{token.STRING, "foo bar"},
+		{token.LBRACKET, "["},
+		{token.STRING, "foobar"},
+		{token.COMMA, ","},
+		{token.INT, "1"},
+		{token.COMMA, ","},
+		{token.INT, "2"},
+		{token.RBRACKET, "]"},
 		{token.EOF, ""},
 	}
 
