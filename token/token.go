@@ -17,8 +17,9 @@ const (
 	// Identifiers + literals
 	// Identifiers are user-defined names for variables, functions, etc.
 	// Literals are fixed values like numbers, strings, etc.
-	IDENT = "IDENT"
-	INT   = "INT"
+	IDENT  = "IDENT"
+	INT    = "INT"
+	STRING = "STRING"
 
 	// Operators
 	// Operators are special symbols that represent computations like addition, subtraction, etc.

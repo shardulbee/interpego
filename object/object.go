@@ -16,6 +16,8 @@ const (
 	RETURN_TYPE   = "RETURN"
 	ERROR_TYPE    = "ERROR"
 	FUNCTION_TYPE = "FUNCTION"
+	STRING_TYPE   = "STRING"
+	BUILTIN_TYPE  = "BUILTIN"
 )
 
 type Object interface {
@@ -32,6 +34,17 @@ func (i *Integer) Type() ObjectType {
 }
 func (i *Integer) Inspect() string {
 	return fmt.Sprintf("%d", i.Value)
+}
+
+type String struct {
+	Value string
+}
+
+func (s *String) Type() ObjectType {
+	return STRING_TYPE
+}
+func (s *String) Inspect() string {
+	return s.Value
 }
 
 type Boolean struct {
@@ -70,11 +83,11 @@ type Error struct {
 	Message string
 }
 
-func (e Error) Type() ObjectType {
+func (e *Error) Type() ObjectType {
 	return ERROR_TYPE
 }
 
-func (e Error) Inspect() string {
+func (e *Error) Inspect() string {
 	return fmt.Sprintf("ERROR: %s", e.Message)
 }
 
@@ -102,3 +115,12 @@ func (fl *Function) Inspect() string {
 	out.WriteString("\n}")
 	return out.String()
 }
+
+type BuiltinFunction func(args ...Object) Object
+
+type Builtin struct {
+	Fn BuiltinFunction
+}
+
+func (b *Builtin) Type() ObjectType { return BUILTIN_TYPE }
+func (b *Builtin) Inspect() string  { return "builtin function" }

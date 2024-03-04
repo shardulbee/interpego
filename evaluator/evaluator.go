@@ -71,17 +71,28 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(result) {
 			return result
 		}
-		function := result.(*object.Function)
-
-		return evalCallExpression(function, evaluatedArgs)
+		switch fn := result.(type) {
+		case *object.Function:
+			return evalCallExpression(fn, evaluatedArgs)
+		case *object.Builtin:
+			return fn.Fn(evaluatedArgs...)
+		default:
+			return newError("not a function: %s", fn.Type())
+		}
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
+	case *ast.StringLiteral:
+		return &object.String{Value: node.Value}
 	case *ast.BooleanLiteral:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.Identifier:
 		if val, ok := env.Get(node.Value); ok {
 			return val
 		}
+		if builtin, ok := builtins[node.Value]; ok {
+			return builtin
+		}
+
 		return newError("unknown identifier: %s", node.Value)
 	}
 	return newError("default branch of eval. could not handle: %T", node)
@@ -91,6 +102,8 @@ func evalInfixExpression(left object.Object, operator string, right object.Objec
 	switch {
 	case left.Type() == object.INTEGER_TYPE && right.Type() == object.INTEGER_TYPE:
 		return evalIntegerInfixExpression(left.(*object.Integer), operator, right.(*object.Integer))
+	case left.Type() == object.STRING_TYPE && right.Type() == object.STRING_TYPE:
+		return evalStringInfixExpression(left.(*object.String), operator, right.(*object.String))
 	case operator == "!=":
 		return nativeBoolToBooleanObject(left != right)
 	case operator == "==":
@@ -112,6 +125,23 @@ func evalIntegerInfixExpression(left *object.Integer, operator string, right *ob
 		return &object.Integer{Value: left.Value * right.Value}
 	case "/":
 		return &object.Integer{Value: left.Value / right.Value}
+	case "<":
+		return nativeBoolToBooleanObject(left.Value < right.Value)
+	case ">":
+		return nativeBoolToBooleanObject(left.Value > right.Value)
+	case "==":
+		return nativeBoolToBooleanObject(left.Value == right.Value)
+	case "!=":
+		return nativeBoolToBooleanObject(left.Value != right.Value)
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+}
+
+func evalStringInfixExpression(left *object.String, operator string, right *object.String) object.Object {
+	switch operator {
+	case "+":
+		return &object.String{Value: left.Value + right.Value}
 	case "<":
 		return nativeBoolToBooleanObject(left.Value < right.Value)
 	case ">":
