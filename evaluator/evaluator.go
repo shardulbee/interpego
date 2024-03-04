@@ -123,6 +123,8 @@ func evalInfixExpression(left object.Object, operator string, right object.Objec
 		return evalIntegerInfixExpression(left.(*object.Integer), operator, right.(*object.Integer))
 	case left.Type() == object.STRING_TYPE && right.Type() == object.STRING_TYPE:
 		return evalStringInfixExpression(left.(*object.String), operator, right.(*object.String))
+	case left.Type() == object.ARRAY_TYPE && right.Type() == object.ARRAY_TYPE:
+		return evalArrayInfixExpression(left.(*object.Array), operator, right.(*object.Array))
 	case operator == "!=":
 		return nativeBoolToBooleanObject(left != right)
 	case operator == "==":
@@ -169,6 +171,55 @@ func evalStringInfixExpression(left *object.String, operator string, right *obje
 		return nativeBoolToBooleanObject(left.Value == right.Value)
 	case "!=":
 		return nativeBoolToBooleanObject(left.Value != right.Value)
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
+	}
+}
+func evalArrayInfixExpression(left *object.Array, operator string, right *object.Array) object.Object {
+	switch operator {
+	case "+":
+		concatenated := make([]object.Object, len(left.Elements)+len(right.Elements))
+		copy(concatenated, left.Elements)
+		copy(concatenated[len(left.Elements):], right.Elements)
+		return &object.Array{Elements: concatenated}
+	case "==":
+		if len(left.Elements) != len(right.Elements) {
+			return FALSE
+		}
+		for i, elem := range left.Elements {
+			res := evalInfixExpression(elem, "==", right.Elements[i])
+			switch res {
+			case TRUE:
+				continue
+			case FALSE:
+				return FALSE
+			default:
+				if isError(res) {
+					return res
+				}
+				return FALSE
+			}
+		}
+		return TRUE
+	case "!=":
+		if len(left.Elements) != len(right.Elements) {
+			return TRUE
+		}
+		for i, elem := range left.Elements {
+			res := evalInfixExpression(elem, "!=", right.Elements[i])
+			switch res {
+			case TRUE:
+				return TRUE
+			case FALSE:
+				continue
+			default:
+				if isError(res) {
+					return res
+				}
+				return newError("unexpected value when comparing elements: got=%T (%+v)", res, res)
+			}
+		}
+		return FALSE
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
