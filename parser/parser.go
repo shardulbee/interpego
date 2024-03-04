@@ -284,19 +284,8 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 
 func (p *Parser) parseArray() ast.Expression {
 	arr := &ast.ArrayLiteral{Token: p.curToken}
-	var elements []ast.Expression
-
 	p.nextToken()
-	for !p.curTokenIs(token.RBRACKET) && !p.curTokenIs(token.EOF) {
-		exp := p.parseExpression(LOWEST)
-		elements = append(elements, exp)
-		if p.peekTokenIs(token.COMMA) {
-			p.nextToken()
-		}
-		p.nextToken()
-	}
-
-	arr.Elements = elements
+	arr.Elements = p.parseExpressionList(token.RBRACKET)
 	return arr
 }
 
@@ -377,19 +366,22 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	return params
 }
 
-func (p *Parser) parseCallExpression(left ast.Expression) ast.Expression {
-	call := &ast.CallExpression{Token: p.curToken, Function: left}
-	p.nextToken()
-
-	args := []ast.Expression{}
-	for !p.curTokenIs(token.RPAREN) && !p.curTokenIs(token.EOF) {
-		args = append(args, p.parseExpression(LOWEST))
+func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
+	elements := []ast.Expression{}
+	for !p.curTokenIs(end) && !p.curTokenIs(token.EOF) {
+		elements = append(elements, p.parseExpression(LOWEST))
 		if p.peekTokenIs(token.COMMA) {
 			p.nextToken()
 		}
 		p.nextToken()
 	}
 
-	call.Arguments = args
+	return elements
+}
+
+func (p *Parser) parseCallExpression(left ast.Expression) ast.Expression {
+	call := &ast.CallExpression{Token: p.curToken, Function: left}
+	p.nextToken()
+	call.Arguments = p.parseExpressionList(token.RPAREN)
 	return call
 }
