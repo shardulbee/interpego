@@ -86,15 +86,24 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.BooleanLiteral:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.ArrayLiteral:
-		var elements []object.Object
-		for _, elem := range node.Elements {
-			result := Eval(elem, env)
-			if isError(result) {
-				return result
-			}
-			elements = append(elements, result)
+		elements := evaluateCallArguments(env, node.Elements)
+		if len(elements) == 1 && isError(elements[0]) {
+			return elements[0]
 		}
+
 		return &object.Array{Elements: elements}
+	case *ast.IndexExpression:
+		idx := Eval(node.Index, env)
+		if isError(idx) {
+			return idx
+		}
+
+		arr := Eval(node.Array, env)
+		if isError(arr) {
+			return arr
+		}
+
+		return evalIndexExpression(arr, idx)
 	case *ast.Identifier:
 		if val, ok := env.Get(node.Value); ok {
 			return val
@@ -301,4 +310,19 @@ func extendFunctionEnvironment(function *object.Function, args []object.Object) 
 		environment.Set(param.Value, args[i])
 	}
 	return environment
+}
+
+func evalIndexExpression(arrObj object.Object, idxObj object.Object) object.Object {
+	switch {
+	case arrObj.Type() == object.ARRAY_TYPE && idxObj.Type() == object.INTEGER_TYPE:
+		arr := arrObj.(*object.Array).Elements
+		idx := idxObj.(*object.Integer).Value
+
+		if idx < 0 || idx > int64(len(arr)-1) {
+			return newError("array index out of bounds: size=%d, index=%d", len(arr), idx)
+		}
+		return arr[idx]
+	default:
+		return newError("index operator not supported: %s", arrObj.Type())
+	}
 }

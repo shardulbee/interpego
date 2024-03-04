@@ -293,3 +293,24 @@ func (ce *CallExpression) String() string {
 	out.WriteString(")")
 	return out.String()
 }
+
+type IndexExpression struct {
+	Token token.Token // LBRACKET
+	Array Expression  // this is the ident of the array, or the array literal
+	Index Expression
+}
+
+func (aie *IndexExpression) expressionNode() {}
+func (aie *IndexExpression) TokenLiteral() string {
+	return aie.Token.Literal
+}
+func (aie *IndexExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(")
+	out.WriteString(aie.Array.String())
+	out.WriteString("[")
+	out.WriteString(aie.Index.String())
+	out.WriteString("])")
+	return out.String()
+}
