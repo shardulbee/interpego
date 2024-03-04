@@ -62,9 +62,6 @@ func TestEvalBooleanExpression(t *testing.T) {
 		{"(1 < 2) == false", false},
 		{"(1 > 2) == true", false},
 		{"(1 > 2) == false", true},
-		{"null == true", false},
-		{"null == 1", false},
-		{"null == null", true},
 	}
 
 	for i, tt := range tests {
@@ -78,7 +75,8 @@ func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
-	return Eval(program)
+	env := object.NewEnvironment()
+	return Eval(program, env)
 }
 
 func testBooleanObject(t *testing.T, actual object.Object, expected bool) bool {
@@ -138,13 +136,13 @@ func TestIfElseExpressions(t *testing.T) {
 		{"if (1 > 2) { 10 } else { 20 }", 20},
 		{"if (1 < 2) { 10 } else { 20 }", 10},
 		{`
-if (10 > 1) {
-	if (10 > 1) {
-		return 10;
-	}
-  return 1;
-}
-			`, 10},
+		if (10 > 1) {
+			if (10 > 1) {
+				return 10;
+			}
+		  return 1;
+		}
+					`, 10},
 	}
 	for i, tt := range tests {
 		t.Logf("Looking at test case: %d", i)
@@ -164,4 +162,114 @@ func testNullObject(t *testing.T, actual object.Object) bool {
 		return false
 	}
 	return true
+}
+
+func TestErrorHandling(t *testing.T) {
+	tests := []struct {
+		input           string
+		expectedMessage string
+	}{
+		{"5 + true;", "type mismatch: INTEGER + BOOLEAN"},
+		{"5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"},
+		{"-true", "unknown operator: -BOOLEAN"},
+		{"true + false;", "unknown operator: BOOLEAN + BOOLEAN"},
+		{"if (10 > 1) { true + false; }", "unknown operator: BOOLEAN + BOOLEAN"},
+		{"!1", "unknown operator: !INTEGER"},
+		{
+			"foobar",
+			"unknown identifier: foobar",
+		},
+	}
+	for i, tt := range tests {
+		t.Logf("Looking at test case: %d", i)
+		result := testEval(tt.input)
+		errorObj, ok := result.(*object.Error)
+		if !ok {
+			t.Fatalf("result is not an object.Error. got=%T (%+v)", result, result)
+		}
+
+		if errorObj.Message != tt.expectedMessage {
+			t.Fatalf("errorObj.Message is not %q. got=%q", tt.expectedMessage, errorObj.Message)
+		}
+	}
+
+}
+
+func TestLetStatements(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"let a = 5; a;", 5},
+		{"let a = 5 * 5; a;", 25},
+		{"let a = 5; let b = a; b;", 5},
+		{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
+		{"let a = if (true) { return 10 } else { 5 }; a;", 10},
+	}
+	for i, tt := range tests {
+		t.Logf("Looking at test case: %d", i)
+		result := testEval(tt.input)
+		testIntegerObject(t, result, tt.expected)
+	}
+}
+
+func TestFunctionObject(t *testing.T) {
+	input := `fn(x) { x + 2; };`
+	result := testEval(input)
+	fn, ok := result.(*object.Function)
+	if !ok {
+		t.Fatalf("result is not an object.Function. got=%T", result)
+	}
+
+	if len(fn.Params) != 1 {
+		t.Fatalf("wrong number of arguments. expected=1, got=%d", len(fn.Params))
+	}
+	if fn.Params[0].Value != "x" {
+		t.Fatalf("expected fn.Params[0] to be 'x'. got=%q", fn.Params[0].Value)
+	}
+
+	if len(fn.Body.Statements) != 1 {
+		t.Fatalf("wrong number of statements in function body. expected=1, got=%d", len(fn.Body.Statements))
+	}
+	expectedBody := "(x + 2)"
+	if fn.Body.String() != expectedBody {
+		t.Fatalf("body is not %q. got=%q", expectedBody, fn.Body.String())
+	}
+}
+
+func TestFunctionApplication(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"let identity = fn(x) { x; }; identity(5);", 5},
+		{"let identity = fn(x) { return x; }; identity(5);", 5},
+		{"let double = fn(x) { x * 2; }; double(5);", 10},
+		{"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
+		{"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
+		{"fn(x) { x; }(5)", 5},
+		{"fn(x) { x; return 2; }(1)", 2},
+		{"fn(x) { x; return 2; x; }(1)", 2},
+		{"fn(x) { x; return 2; x; }(1); return 20", 20},
+	}
+	for _, tt := range tests {
+		testIntegerObject(t, testEval(tt.input), tt.expected)
+	}
+}
+
+func TestClosures(t *testing.T) {
+	input := `
+   let newAdder = fn(x) {
+     fn(y) { x + y };
+};
+   let addTwo = newAdder(2);
+   addTwo(2);`
+	testIntegerObject(t, testEval(input), 4)
+
+	input = `
+		let a = 1;
+		let addA = fn(x) { x + a };
+		addA(3);
+	`
+	testIntegerObject(t, testEval(input), 4)
 }

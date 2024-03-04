@@ -1,14 +1,21 @@
 package object
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"interpego/ast"
+	"strings"
+)
 
 type ObjectType string
 
 const (
-	INTEGER_TYPE = "INTEGER"
-	BOOLEAN_TYPE = "BOOLEAN"
-	NULL_TYPE    = "NULL"
-	RETURN_TYPE  = "RETURN"
+	INTEGER_TYPE  = "INTEGER"
+	BOOLEAN_TYPE  = "BOOLEAN"
+	NULL_TYPE     = "NULL"
+	RETURN_TYPE   = "RETURN"
+	ERROR_TYPE    = "ERROR"
+	FUNCTION_TYPE = "FUNCTION"
 )
 
 type Object interface {
@@ -57,4 +64,41 @@ func (rv *ReturnValue) Type() ObjectType {
 }
 func (rv *ReturnValue) Inspect() string {
 	return rv.Value.Inspect()
+}
+
+type Error struct {
+	Message string
+}
+
+func (e Error) Type() ObjectType {
+	return ERROR_TYPE
+}
+
+func (e Error) Inspect() string {
+	return fmt.Sprintf("ERROR: %s", e.Message)
+}
+
+type Function struct {
+	Env    *Environment
+	Params []*ast.Identifier
+	Body   *ast.BlockStatement
+}
+
+func (fl *Function) Type() ObjectType {
+	return FUNCTION_TYPE
+}
+
+func (fl *Function) Inspect() string {
+	var out bytes.Buffer
+	params := []string{}
+	for _, p := range fl.Params {
+		params = append(params, p.String())
+	}
+	out.WriteString("fn")
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") {\n")
+	out.WriteString(fl.Body.String())
+	out.WriteString("\n}")
+	return out.String()
 }
