@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"hash/fnv"
-	"interpego/ast"
 	"strings"
+
+	"interpego/ast"
 )
 
 type ObjectType string
@@ -35,6 +36,7 @@ type Integer struct {
 func (i *Integer) Type() ObjectType {
 	return INTEGER_TYPE
 }
+
 func (i *Integer) Inspect() string {
 	return fmt.Sprintf("%d", i.Value)
 }
@@ -46,6 +48,7 @@ type String struct {
 func (s *String) Type() ObjectType {
 	return STRING_TYPE
 }
+
 func (s *String) Inspect() string {
 	return s.Value
 }
@@ -57,16 +60,17 @@ type Boolean struct {
 func (b *Boolean) Type() ObjectType {
 	return BOOLEAN_TYPE
 }
+
 func (b *Boolean) Inspect() string {
 	return fmt.Sprintf("%t", b.Value)
 }
 
-type Null struct {
-}
+type Null struct{}
 
 func (n *Null) Type() ObjectType {
 	return NULL_TYPE
 }
+
 func (n *Null) Inspect() string {
 	return fmt.Sprintf("null")
 }
@@ -78,6 +82,7 @@ type ReturnValue struct {
 func (rv *ReturnValue) Type() ObjectType {
 	return RETURN_TYPE
 }
+
 func (rv *ReturnValue) Inspect() string {
 	return rv.Value.Inspect()
 }
@@ -110,12 +115,7 @@ func (fl *Function) Inspect() string {
 	for _, p := range fl.Params {
 		params = append(params, p.String())
 	}
-	out.WriteString("fn")
-	out.WriteString("(")
-	out.WriteString(strings.Join(params, ", "))
-	out.WriteString(") {\n")
-	out.WriteString(fl.Body.String())
-	out.WriteString("\n}")
+	out.WriteString(fmt.Sprintf("fn(%s) { %s }", strings.Join(params, ", "), fl.Body.String()))
 	return out.String()
 }
 
