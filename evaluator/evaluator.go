@@ -133,7 +133,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if val, ok := env.Get(node.Value); ok {
 			return val
 		}
-		if builtin, ok := NewEvaluator().Builtins[node.Value]; ok {
+		if builtin, ok := NewBuiltins()[node.Value]; ok {
 			return builtin
 		}
 
