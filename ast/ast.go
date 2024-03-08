@@ -2,6 +2,8 @@ package ast
 
 import (
 	"bytes"
+	"fmt"
+
 	"interpego/token"
 )
 
@@ -37,7 +39,6 @@ func (ls *LetStatement) String() string {
 	if ls.Value != nil {
 		out.WriteString(ls.Value.String())
 	}
-	out.WriteString(";")
 	return out.String()
 }
 
@@ -239,6 +240,31 @@ func (bs *BlockStatement) String() string {
 	return out.String()
 }
 
+type ForLoop struct {
+	Token         token.Token // the for token
+	InitStatement Statement
+	Condition     Expression
+	PostStatement Statement
+	ForBody       *BlockStatement
+}
+
+func (fl *ForLoop) expressionNode() {}
+func (fl *ForLoop) TokenLiteral() string {
+	return fl.Token.Literal
+}
+
+func (fl *ForLoop) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(fmt.Sprintf("%s (%s; %s; %s) {\n", fl.TokenLiteral(), fl.InitStatement.String(), fl.Condition.String(), fl.PostStatement.String()))
+	for _, bodyStmt := range fl.ForBody.Statements {
+		out.WriteString(fmt.Sprintf("\t%s\n", bodyStmt.String()))
+	}
+	out.WriteString("}")
+
+	return out.String()
+}
+
 type FunctionLiteral struct {
 	Token        token.Token // the fn token
 	Parameters   []*Identifier
@@ -249,6 +275,7 @@ func (fl *FunctionLiteral) expressionNode() {}
 func (fl *FunctionLiteral) TokenLiteral() string {
 	return fl.Token.Literal
 }
+
 func (fl *FunctionLiteral) String() string {
 	var out bytes.Buffer
 
@@ -279,6 +306,7 @@ func (ce *CallExpression) expressionNode() {}
 func (ce *CallExpression) TokenLiteral() string {
 	return ce.Token.Literal
 }
+
 func (ce *CallExpression) String() string {
 	var out bytes.Buffer
 
@@ -296,7 +324,7 @@ func (ce *CallExpression) String() string {
 
 type IndexExpression struct {
 	Token token.Token // LBRACKET
-	Array Expression  // this is the ident of the array, or the array literal
+	Left  Expression  // this is the ident of the array, hash, or literal
 	Index Expression
 }
 
@@ -304,13 +332,37 @@ func (aie *IndexExpression) expressionNode() {}
 func (aie *IndexExpression) TokenLiteral() string {
 	return aie.Token.Literal
 }
+
 func (aie *IndexExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("(")
-	out.WriteString(aie.Array.String())
+	out.WriteString(aie.Left.String())
 	out.WriteString("[")
 	out.WriteString(aie.Index.String())
 	out.WriteString("])")
+	return out.String()
+}
+
+type HashLiteral struct {
+	Token token.Token // { token
+	Pairs map[Expression]Expression
+}
+
+func (h *HashLiteral) expressionNode() {}
+func (h *HashLiteral) TokenLiteral() string {
+	return h.Token.Literal
+}
+
+func (h *HashLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("{")
+	for k, v := range h.Pairs {
+		out.WriteString(k.String())
+		out.WriteString(": ")
+		out.WriteString(v.String())
+	}
+	out.WriteString("}")
 	return out.String()
 }

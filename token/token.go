@@ -40,6 +40,7 @@ const (
 	// Delimiters are special symbols that are used to separate tokens.
 	// The delimiter tokens are the actual characters like (, ), etc.
 	COMMA     = ","
+	COLON     = ":"
 	SEMICOLON = ";"
 	LPAREN    = "("
 	RPAREN    = ")"
@@ -58,6 +59,7 @@ const (
 	RETURN   = "RETURN"
 	TRUE     = "TRUE"
 	FALSE    = "FALSE"
+	FOR      = "FOR"
 )
 
 var keywords = map[string]TokenType{
@@ -68,6 +70,7 @@ var keywords = map[string]TokenType{
 	"true":   TRUE,
 	"false":  FALSE,
 	"return": RETURN,
+	"for":    FOR,
 }
 
 func LookupIdent(ident string) TokenType {

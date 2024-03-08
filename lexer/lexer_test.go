@@ -1,8 +1,9 @@
 package lexer
 
 import (
-	"interpego/token"
 	"testing"
+
+	"interpego/token"
 )
 
 func TestNextToken(t *testing.T) {
@@ -26,6 +27,10 @@ if (5 < 10) {
 "foo bar"
 "foobar"
 ["foobar", 1, 2]
+{"key": 1, "value": 3}
+for (let i = 1; i < 5; let i = i + 1) {
+	i + 1;
+}
    `
 	tests := []struct {
 		expectedType    token.TokenType
@@ -115,6 +120,39 @@ if (5 < 10) {
 		{token.COMMA, ","},
 		{token.INT, "2"},
 		{token.RBRACKET, "]"},
+		{token.LBRACE, "{"},
+		{token.STRING, "key"},
+		{token.COLON, ":"},
+		{token.INT, "1"},
+		{token.COMMA, ","},
+		{token.STRING, "value"},
+		{token.COLON, ":"},
+		{token.INT, "3"},
+		{token.RBRACE, "}"},
+		{token.FOR, "FOR"},
+		{token.LPAREN, "("},
+		{token.LET, "let"},
+		{token.IDENT, "i"},
+		{token.ASSIGN, "="},
+		{token.INT, "1"},
+		{token.SEMICOLON, ";"},
+		{token.IDENT, "i"},
+		{token.LT, "<"},
+		{token.INT, "5"},
+		{token.SEMICOLON, ";"},
+		{token.LET, "let"},
+		{token.IDENT, "i"},
+		{token.ASSIGN, "="},
+		{token.IDENT, "i"},
+		{token.PLUS, "+"},
+		{token.INT, "1"},
+		{token.RPAREN, ")"},
+		{token.LBRACE, "{"},
+		{token.IDENT, "i"},
+		{token.PLUS, "+"},
+		{token.INT, "1"},
+		{token.SEMICOLON, ";"},
+		{token.RBRACE, "}"},
 		{token.EOF, ""},
 	}
 

@@ -2,9 +2,10 @@ package parser
 
 import (
 	"fmt"
+	"testing"
+
 	"interpego/ast"
 	"interpego/lexer"
-	"testing"
 )
 
 func TestReturnStatements(t *testing.T) {
@@ -657,6 +658,7 @@ func TestParsingFunctionLiteral(t *testing.T) {
 	}
 	testInfixExpression(t, exp.Expression, "x", "+", "y")
 }
+
 func TestFunctionParameterParsing(t *testing.T) {
 	tests := []struct {
 		input          string
@@ -786,10 +788,139 @@ func TestParsingIndexExpressions(t *testing.T) {
 	if !ok {
 		t.Fatalf("exp not *ast.IndexExpression. got=%T", stmt.Expression)
 	}
-	if !testIdentifier(t, indexExp.Array, "myArray") {
+	if !testIdentifier(t, indexExp.Left, "myArray") {
 		return
 	}
 	if !testInfixExpression(t, indexExp.Index, 1, "+", 1) {
 		return
+	}
+}
+
+func TestHashLiteralExpression(t *testing.T) {
+	input := `{"key1": "value1", "key2": "value2", 1: 2, "key3": [1, 2, 3]}`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program does not have the right amount of statements. expected 1, got %d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not an ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	hashLiteral, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("exp not *ast.HashLiteral. got=%T", stmt.Expression)
+	}
+
+	if len(hashLiteral.Pairs) != 4 {
+		t.Fatalf("hashLiteral.Pairs does not have the correct number of elements. expected=4, got %d", len(hashLiteral.Pairs))
+	}
+}
+
+func TestParsingEmptyHashLiteral(t *testing.T) {
+	input := "{}"
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt := program.Statements[0].(*ast.ExpressionStatement)
+	hash, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("exp is not ast.HashLiteral. got=%T", stmt.Expression)
+	}
+	if len(hash.Pairs) != 0 {
+		t.Errorf("hash.Pairs has wrong length. got=%d", len(hash.Pairs))
+	}
+}
+
+func TestParsingHashLiteralsStringKeys(t *testing.T) {
+	input := `{"one": 1, "two": 2, "three": 3}`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt := program.Statements[0].(*ast.ExpressionStatement)
+	hash, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("exp is not ast.HashLiteral. got=%T", stmt.Expression)
+	}
+	if len(hash.Pairs) != 3 {
+		t.Errorf("hash.Pairs has wrong length. got=%d", len(hash.Pairs))
+	}
+	expected := map[string]int64{
+		"one":   1,
+		"two":   2,
+		"three": 3,
+	}
+	for key, value := range hash.Pairs {
+		literal, ok := key.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("key is not ast.StringLiteral. got=%T", key)
+		}
+		expectedValue := expected[literal.String()]
+		testIntegerLiteral(t, value, expectedValue)
+	}
+}
+
+func TestParsingHashLiteralsWithExpressions(t *testing.T) {
+	input := `{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt := program.Statements[0].(*ast.ExpressionStatement)
+	hash, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("exp is not ast.HashLiteral. got=%T", stmt.Expression)
+	}
+	if len(hash.Pairs) != 3 {
+		t.Errorf("hash.Pairs has wrong length. got=%d", len(hash.Pairs))
+	}
+	tests := map[string]func(ast.Expression){
+		"one": func(e ast.Expression) {
+			testInfixExpression(t, e, 0, "+", 1)
+		},
+		"two": func(e ast.Expression) {
+			testInfixExpression(t, e, 10, "-", 8)
+		},
+		"three": func(e ast.Expression) {
+			testInfixExpression(t, e, 15, "/", 5)
+		},
+	}
+	for key, value := range hash.Pairs {
+		literal, ok := key.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("key is not ast.StringLiteral. got=%T", key)
+			continue
+		}
+		testFunc, ok := tests[literal.String()]
+		if !ok {
+			t.Errorf("No test function for key %q found", literal.String())
+			continue
+		}
+		testFunc(value)
+	}
+}
+
+func TestParsingForLoops(t *testing.T) {
+	input := `for (let i = 1; i < 5; let i = i + 1) { i + 1; i + 1; }`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	if len(program.Statements) != 1 {
+		t.Fatalf("Expected 1 statements, found %d", len(program.Statements))
+	}
+	forLoop := program.Statements[0].(*ast.ExpressionStatement).Expression.(*ast.ForLoop)
+
+	testLetStatement(t, forLoop.InitStatement, "i")
+	testInfixExpression(t, forLoop.Condition, "i", "<", 5)
+	testLetStatement(t, forLoop.PostStatement, "i")
+	if len(forLoop.ForBody.Statements) != 2 {
+		t.Fatalf("incorrect number of statements in for loop body. expected=%d, got=%d", 2, len(forLoop.ForBody.Statements))
 	}
 }

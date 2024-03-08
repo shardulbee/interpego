@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+
 	"interpego/ast"
 	"interpego/object"
 )
@@ -20,6 +21,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalBlockStatement(env, node)
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, env)
+	case *ast.ForLoop:
+		return evalForLoop(env, node)
 	case *ast.LetStatement:
 		value := Eval(node.Value, env)
 		if isError(value) {
@@ -92,13 +95,35 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 
 		return &object.Array{Elements: elements}
+	case *ast.HashLiteral:
+		pairs := node.Pairs
+		evaluatedPairs := make(map[object.HashKey]object.HashPair)
+		for keyNode := range pairs {
+			evaluatedKey := Eval(keyNode, env)
+			if isError(evaluatedKey) {
+				return evaluatedKey
+			}
+			hashable, ok := evaluatedKey.(object.Hashable)
+			if !ok {
+				return newError("key type is not hashable: %s", evaluatedKey.Type())
+			}
+			evaluatedValue := Eval(pairs[keyNode], env)
+			if isError(evaluatedKey) {
+				return evaluatedKey
+			}
+			if isError(evaluatedValue) {
+				return evaluatedValue
+			}
+			evaluatedPairs[hashable.HashKey()] = object.HashPair{Key: evaluatedKey, Value: evaluatedValue}
+		}
+		return &object.Hash{Pairs: evaluatedPairs}
 	case *ast.IndexExpression:
 		idx := Eval(node.Index, env)
 		if isError(idx) {
 			return idx
 		}
 
-		arr := Eval(node.Array, env)
+		arr := Eval(node.Left, env)
 		if isError(arr) {
 			return arr
 		}
@@ -175,6 +200,7 @@ func evalStringInfixExpression(left *object.String, operator string, right *obje
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
+
 func evalArrayInfixExpression(left *object.Array, operator string, right *object.Array) object.Object {
 	switch operator {
 	case "+":
@@ -363,17 +389,56 @@ func extendFunctionEnvironment(function *object.Function, args []object.Object) 
 	return environment
 }
 
-func evalIndexExpression(arrObj object.Object, idxObj object.Object) object.Object {
+func evalIndexExpression(indexable object.Object, idxObj object.Object) object.Object {
 	switch {
-	case arrObj.Type() == object.ARRAY_TYPE && idxObj.Type() == object.INTEGER_TYPE:
-		arr := arrObj.(*object.Array).Elements
+	case indexable.Type() == object.ARRAY_TYPE && idxObj.Type() == object.INTEGER_TYPE:
+		arr := indexable.(*object.Array).Elements
 		idx := idxObj.(*object.Integer).Value
 
 		if idx < 0 || idx > int64(len(arr)-1) {
 			return newError("array index out of bounds: size=%d, index=%d", len(arr), idx)
 		}
 		return arr[idx]
+	case indexable.Type() == object.HASH_TYPE:
+		hash := indexable.(*object.Hash).Pairs
+		hashKey, ok := idxObj.(object.Hashable)
+		if !ok {
+			return newError("unusable as hash key: %s", idxObj.Type())
+		}
+		if pair, ok := hash[hashKey.HashKey()]; ok {
+			return pair.Value
+		}
+		return NULL
 	default:
-		return newError("index operator not supported: %s", arrObj.Type())
+		return newError("index operator not supported: %s", indexable.Type())
 	}
+}
+
+func evalForLoop(env *object.Environment, forLoop *ast.ForLoop) object.Object {
+	if initResult := Eval(forLoop.InitStatement, env); isError(initResult) {
+		return initResult
+	}
+	evalCondition := Eval(forLoop.Condition, env)
+	if isError(evalCondition) {
+		return evalCondition
+	}
+	if evalCondition.Type() != object.BOOLEAN_TYPE {
+		return newError("for loop condition must be have type %s", object.BOOLEAN_TYPE)
+	}
+
+	conditionResult := evalCondition.(*object.Boolean)
+	var forResult object.Object
+	for conditionResult.Value {
+		forResult = Eval(forLoop.ForBody, env)
+		if isError(forResult) {
+			return forResult
+		}
+
+		if postResult := Eval(forLoop.PostStatement, env); isError(postResult) {
+			return postResult
+		}
+		conditionResult = Eval(forLoop.Condition, env).(*object.Boolean)
+	}
+
+	return forResult
 }

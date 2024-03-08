@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"interpego/object"
 )
 
@@ -71,6 +73,15 @@ var builtins = map[string]*object.Builtin{
 			copy(newArr, arr)
 			newArr[length] = args[1]
 			return &object.Array{Elements: newArr}
+		},
+	},
+	"print": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1", len(args))
+			}
+			fmt.Printf("%s\n", args[0].Inspect())
+			return NULL
 		},
 	},
 	"len": {

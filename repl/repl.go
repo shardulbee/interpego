@@ -3,11 +3,12 @@ package repl
 import (
 	"bufio"
 	"fmt"
+	"io"
+
 	"interpego/evaluator"
 	"interpego/lexer"
 	"interpego/object"
 	"interpego/parser"
-	"io"
 )
 
 const PROMPT = ">> "
@@ -37,10 +38,11 @@ func Start(in io.Reader, out io.Writer) {
 
 		eval := evaluator.Eval(program, env)
 
-		io.WriteString(out, eval.Inspect())
-		io.WriteString(out, "\n")
+		io.WriteString(out, "=> "+eval.Inspect())
+		io.WriteString(out, "\n\n")
 	}
 }
+
 func printParserErrors(out io.Writer, errors []string) {
 	for _, msg := range errors {
 		io.WriteString(out, "\t"+msg+"\n")

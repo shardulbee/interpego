@@ -1,10 +1,11 @@
 package evaluator
 
 import (
+	"testing"
+
 	"interpego/lexer"
 	"interpego/object"
 	"interpego/parser"
-	"testing"
 )
 
 func TestEvalIntegerExpression(t *testing.T) {
@@ -230,7 +231,6 @@ func TestErrorHandling(t *testing.T) {
 			t.Fatalf("errorObj.Message is not %q. got=%q", tt.expectedMessage, errorObj.Message)
 		}
 	}
-
 }
 
 func TestLetStatements(t *testing.T) {
@@ -345,7 +345,7 @@ func TestBuiltinFunctions(t *testing.T) {
 	}
 }
 
-func TestArrayIndexExpressionsk(t *testing.T) {
+func TestArrayIndexExpressions(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected int64
@@ -390,4 +390,81 @@ func TestArrayIndexExpressionsk(t *testing.T) {
 		result := testEval(tt.input)
 		testIntegerObject(t, result, tt.expected)
 	}
+}
+
+func TestHashIndexExpressions(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`{"key": 1}["key"]`, 1},
+		{`{"key": 1}["value"]`, nil},
+		{`{1: "1"}["value"]`, nil},
+		{`{1: "1"}[1]`, "1"},
+		{`{true: "1"}[true]`, "1"},
+		{`{true: "1"}[false]`, nil},
+		{`{true: "1"}["1"]`, nil},
+	}
+	for i, tt := range tests {
+		t.Logf("Looking at test case: %d", i)
+		result := testEval(tt.input)
+		switch expected := tt.expected.(type) {
+		case string:
+			testStringObject(t, result, expected)
+		case int:
+			testIntegerObject(t, result, int64(expected))
+		case nil:
+			testNullObject(t, result)
+		default:
+			t.Fatalf("unhandled test case. expected=%T", expected)
+		}
+	}
+}
+
+func TestHashLiterals(t *testing.T) {
+	input := `
+let two = "two";
+{
+           "one": 10 - 9,
+           two: 1 + 1,
+           "thr" + "ee": 6 / 2,
+           4: 4,
+           true: 5,
+           false: 6
+}`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*object.Hash)
+	if !ok {
+		t.Fatalf("Eval didn't return Hash. got=%T (%+v)", evaluated, evaluated)
+	}
+	expected := map[object.HashKey]int64{
+		(&object.String{Value: "one"}).HashKey():   1,
+		(&object.String{Value: "two"}).HashKey():   2,
+		(&object.String{Value: "three"}).HashKey(): 3,
+		(&object.Integer{Value: 4}).HashKey():      4,
+		TRUE.HashKey():                             5,
+		FALSE.HashKey():                            6,
+	}
+	if len(result.Pairs) != len(expected) {
+		t.Fatalf("Hash has wrong num of pairs. got=%d", len(result.Pairs))
+	}
+	for expectedKey, expectedValue := range expected {
+		pair, ok := result.Pairs[expectedKey]
+		if !ok {
+			t.Errorf("no pair for given key in Pairs")
+		}
+		testIntegerObject(t, pair.Value, expectedValue)
+	}
+}
+
+func TestForLoop(t *testing.T) {
+	input := `
+for (let i = 1; i < 5; let i = i + 1) { i; }
+`
+	evaluated := testEval(input)
+	result, ok := evaluated.(*object.Integer)
+	if !ok {
+		t.Fatalf("Eval didn't return Integer. got=%T (%+v)", evaluated, evaluated)
+	}
+	testIntegerObject(t, result, 4)
 }
