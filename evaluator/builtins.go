@@ -117,7 +117,7 @@ func NewBuiltins() Builtins {
 				}
 				newArr := make([]object.Object, len(arr.Elements))
 				for i, elem := range arr.Elements {
-					newElem := evalCallExpression(fn, []object.Object{elem})
+					newElem := evalCallExpression(NewBuiltins(), fn, []object.Object{elem})
 					if isError(newElem) {
 						return newElem
 					}
@@ -147,7 +147,7 @@ func NewBuiltins() Builtins {
 
 				acc := args[2]
 				for _, elem := range arr.Elements {
-					acc = evalCallExpression(fn, []object.Object{elem, acc})
+					acc = evalCallExpression(NewBuiltins(), fn, []object.Object{elem, acc})
 					if isError(acc) {
 						return acc
 					}

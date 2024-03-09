@@ -100,7 +100,7 @@ func testEval(input string) object.Object {
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()
-	return Eval(program, env)
+	return Eval(NewBuiltins(), program, env)
 }
 
 func testBooleanObject(t *testing.T, actual object.Object, expected bool) bool {

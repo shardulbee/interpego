@@ -13,51 +13,51 @@ var (
 	NULL  = &object.Null{}
 )
 
-func Eval(node ast.Node, env *object.Environment) object.Object {
+func Eval(builtins Builtins, node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
-		return evalProgram(env, node)
+		return evalProgram(builtins, env, node)
 	case *ast.BlockStatement:
-		return evalBlockStatement(env, node)
+		return evalBlockStatement(builtins, env, node)
 	case *ast.ExpressionStatement:
-		return Eval(node.Expression, env)
+		return Eval(builtins, node.Expression, env)
 	case *ast.ForLoop:
-		return evalForLoop(env, node)
+		return evalForLoop(builtins, env, node)
 	case *ast.LetStatement:
-		value := Eval(node.Value, env)
+		value := Eval(builtins, node.Value, env)
 		if isError(value) {
 			return value
 		}
 		env.Set(node.Name.Value, value)
 		return value
 	case *ast.ReturnStatement:
-		obj := Eval(node.ReturnValue, env)
+		obj := Eval(builtins, node.ReturnValue, env)
 		if isError(obj) {
 			return obj
 		}
 		return &object.ReturnValue{Value: obj}
 	case *ast.PrefixExpression:
-		right := Eval(node.Right, env)
+		right := Eval(builtins, node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
-		left := Eval(node.Left, env)
+		left := Eval(builtins, node.Left, env)
 		if isError(left) {
 			return left
 		}
-		right := Eval(node.Right, env)
+		right := Eval(builtins, node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalInfixExpression(left, node.Operator, right)
 	case *ast.IfExpression:
-		condition := Eval(node.Condition, env)
+		condition := Eval(builtins, node.Condition, env)
 		if isError(condition) {
 			return condition
 		}
-		return evalIfElseExpression(env, condition, node.Consequence, node.Alternative)
+		return evalIfElseExpression(builtins, env, condition, node.Consequence, node.Alternative)
 	case *ast.FunctionLiteral:
 		return &object.Function{
 			Env:    env,
@@ -65,18 +65,18 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			Body:   node.FunctionBody,
 		}
 	case *ast.CallExpression:
-		evaluatedArgs := evaluateCallArguments(env, node.Arguments)
+		evaluatedArgs := evaluateCallArguments(builtins, env, node.Arguments)
 		if len(evaluatedArgs) == 1 && isError(evaluatedArgs[0]) {
 			return evaluatedArgs[0]
 		}
 
-		result := Eval(node.Function, env)
+		result := Eval(builtins, node.Function, env)
 		if isError(result) {
 			return result
 		}
 		switch fn := result.(type) {
 		case *object.Function:
-			return evalCallExpression(fn, evaluatedArgs)
+			return evalCallExpression(builtins, fn, evaluatedArgs)
 		case *object.Builtin:
 			return fn.Fn(evaluatedArgs...)
 		default:
@@ -89,7 +89,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.BooleanLiteral:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.ArrayLiteral:
-		elements := evaluateCallArguments(env, node.Elements)
+		elements := evaluateCallArguments(builtins, env, node.Elements)
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
@@ -99,7 +99,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		pairs := node.Pairs
 		evaluatedPairs := make(map[object.HashKey]object.HashPair)
 		for keyNode := range pairs {
-			evaluatedKey := Eval(keyNode, env)
+			evaluatedKey := Eval(builtins, keyNode, env)
 			if isError(evaluatedKey) {
 				return evaluatedKey
 			}
@@ -107,7 +107,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			if !ok {
 				return newError("key type is not hashable: %s", evaluatedKey.Type())
 			}
-			evaluatedValue := Eval(pairs[keyNode], env)
+			evaluatedValue := Eval(builtins, pairs[keyNode], env)
 			if isError(evaluatedKey) {
 				return evaluatedKey
 			}
@@ -118,12 +118,12 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 		return &object.Hash{Pairs: evaluatedPairs}
 	case *ast.IndexExpression:
-		idx := Eval(node.Index, env)
+		idx := Eval(builtins, node.Index, env)
 		if isError(idx) {
 			return idx
 		}
 
-		arr := Eval(node.Left, env)
+		arr := Eval(builtins, node.Left, env)
 		if isError(arr) {
 			return arr
 		}
@@ -288,10 +288,10 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	return FALSE
 }
 
-func evalProgram(env *object.Environment, program *ast.Program) object.Object {
+func evalProgram(builtins Builtins, env *object.Environment, program *ast.Program) object.Object {
 	var result object.Object
 	for _, stmt := range program.Statements {
-		result = Eval(stmt, env)
+		result = Eval(builtins, stmt, env)
 		switch result := result.(type) {
 		case *object.ReturnValue:
 			return result.Value
@@ -302,10 +302,10 @@ func evalProgram(env *object.Environment, program *ast.Program) object.Object {
 	return result
 }
 
-func evalBlockStatement(env *object.Environment, bs *ast.BlockStatement) object.Object {
+func evalBlockStatement(builtins Builtins, env *object.Environment, bs *ast.BlockStatement) object.Object {
 	var result object.Object
 	for _, stmt := range bs.Statements {
-		result = Eval(stmt, env)
+		result = Eval(builtins, stmt, env)
 		if result != nil {
 			rt := result.Type()
 			if rt == object.RETURN_TYPE || rt == object.ERROR_TYPE {
@@ -316,13 +316,13 @@ func evalBlockStatement(env *object.Environment, bs *ast.BlockStatement) object.
 	return result
 }
 
-func evalIfElseExpression(env *object.Environment, condition object.Object, consequence *ast.BlockStatement, alternative *ast.BlockStatement) object.Object {
+func evalIfElseExpression(builtins Builtins, env *object.Environment, condition object.Object, consequence *ast.BlockStatement, alternative *ast.BlockStatement) object.Object {
 	if isTruthy(condition) {
-		return Eval(consequence, env)
+		return Eval(builtins, consequence, env)
 	} else if alternative == nil {
 		return NULL
 	}
-	return Eval(alternative, env)
+	return Eval(builtins, alternative, env)
 }
 
 func isTruthy(condition object.Object) bool {
@@ -349,10 +349,10 @@ func isError(obj object.Object) bool {
 	return false
 }
 
-func evaluateCallArguments(env *object.Environment, args []ast.Expression) []object.Object {
+func evaluateCallArguments(builtins Builtins, env *object.Environment, args []ast.Expression) []object.Object {
 	var evaluatedArgs []object.Object
 	for _, arg := range args {
-		result := Eval(arg, env)
+		result := Eval(builtins, arg, env)
 		if isError(result) {
 			return []object.Object{result}
 		}
@@ -361,7 +361,7 @@ func evaluateCallArguments(env *object.Environment, args []ast.Expression) []obj
 	return evaluatedArgs
 }
 
-func evalCallExpression(function *object.Function, args []object.Object) object.Object {
+func evalCallExpression(builtins Builtins, function *object.Function, args []object.Object) object.Object {
 	if len(function.Params) != len(args) {
 		return newError(
 			"incorrect number of arguments passed to function: expected=%d, got=%d",
@@ -370,7 +370,7 @@ func evalCallExpression(function *object.Function, args []object.Object) object.
 		)
 	}
 	extended := extendFunctionEnvironment(function, args)
-	applied := Eval(function.Body, extended)
+	applied := Eval(builtins, function.Body, extended)
 	return unwrapReturnValue(applied)
 }
 
@@ -414,11 +414,11 @@ func evalIndexExpression(indexable object.Object, idxObj object.Object) object.O
 	}
 }
 
-func evalForLoop(env *object.Environment, forLoop *ast.ForLoop) object.Object {
-	if initResult := Eval(forLoop.InitStatement, env); isError(initResult) {
+func evalForLoop(builtins Builtins, env *object.Environment, forLoop *ast.ForLoop) object.Object {
+	if initResult := Eval(builtins, forLoop.InitStatement, env); isError(initResult) {
 		return initResult
 	}
-	evalCondition := Eval(forLoop.Condition, env)
+	evalCondition := Eval(builtins, forLoop.Condition, env)
 	if isError(evalCondition) {
 		return evalCondition
 	}
@@ -429,15 +429,15 @@ func evalForLoop(env *object.Environment, forLoop *ast.ForLoop) object.Object {
 	conditionResult := evalCondition.(*object.Boolean)
 	var forResult object.Object
 	for conditionResult.Value {
-		forResult = Eval(forLoop.ForBody, env)
+		forResult = Eval(builtins, forLoop.ForBody, env)
 		if isError(forResult) {
 			return forResult
 		}
 
-		if postResult := Eval(forLoop.PostStatement, env); isError(postResult) {
+		if postResult := Eval(builtins, forLoop.PostStatement, env); isError(postResult) {
 			return postResult
 		}
-		conditionResult = Eval(forLoop.Condition, env).(*object.Boolean)
+		conditionResult = Eval(builtins, forLoop.Condition, env).(*object.Boolean)
 	}
 
 	return forResult
