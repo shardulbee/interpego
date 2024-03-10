@@ -221,3 +221,27 @@ func parse(input string) *ast.Program {
 	p := parser.New(l)
 	return p.ParseProgram()
 }
+
+func TestPrefixExpressions(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             "!true",
+			expectedConstants: []interface{}{},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),
+				code.Make(code.OpBang),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "-5",
+			expectedConstants: []interface{}{5},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpMinus),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}

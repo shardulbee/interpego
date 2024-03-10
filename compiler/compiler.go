@@ -70,12 +70,29 @@ func (c *Compiler) Compile(node ast.Node) error {
 		case ">":
 			c.emit(code.OpGreaterThan)
 		case "<":
-			// TODO this should be reordered? how do i do that
 			c.emit(code.OpGreaterThan)
 
 		default:
 			return fmt.Errorf("unsupported operator %q", node.Operator)
 		}
+	case *ast.PrefixExpression:
+		switch node.Operator {
+		case "!":
+			err := c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpBang)
+		case "-":
+			err := c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpMinus)
+		default:
+			return fmt.Errorf("unknown operator: %q", node.Operator)
+		}
+		return nil
 	case *ast.IntegerLiteral:
 		c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: node.Value}))
 	case *ast.StringLiteral:

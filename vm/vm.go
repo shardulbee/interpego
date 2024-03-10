@@ -31,6 +31,20 @@ func (vm *VM) Run() error {
 	for ip := 0; ip < len(vm.instructions); ip++ {
 		op := code.Opcode(vm.instructions[ip])
 		switch op {
+		case code.OpBang:
+			popped := vm.pop()
+			if popped.Type() != object.BOOLEAN_TYPE {
+				return fmt.Errorf("only boolean objects are supported by bang prefix operator. got=%T (%+v)", popped, popped)
+			}
+			bool := popped.(*object.Boolean)
+			vm.push(nativeBoolToBooleanObject(!bool.Value))
+		case code.OpMinus:
+			popped := vm.pop()
+			if popped.Type() != object.INTEGER_TYPE {
+				return fmt.Errorf("only integer objects are supported by minus prefix operator. got=%T (%+v)", popped, popped)
+			}
+			int := popped.(*object.Integer)
+			vm.push(&object.Integer{Value: -int.Value})
 		case code.OpConstant:
 			constantAddress := binary.BigEndian.Uint16(vm.instructions[ip+1:])
 			err := vm.push(vm.constants[constantAddress])
