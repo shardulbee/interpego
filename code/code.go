@@ -10,6 +10,16 @@ import (
 // virtual machine.
 const (
 	OpConstant Opcode = iota
+	OpAdd
+	OpPop
+	OpSub
+	OpMul
+	OpDiv
+	OpTrue
+	OpFalse
+	OpEqual
+	OpNotEqual
+	OpGreaterThan
 )
 
 type (
@@ -48,6 +58,8 @@ func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
 	switch operandCount {
 	case 1:
 		return fmt.Sprintf("%s %d", def.Name, operands[0])
+	case 0:
+		return fmt.Sprintf("%s", def.Name)
 	default:
 		return fmt.Sprintf("ERROR: unhandled operandCount for %s\n", def.Name)
 	}
@@ -77,9 +89,17 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant: {
-		Name: "OpConstant", OperandWidths: []int{2},
-	},
+	OpConstant:    {Name: "OpConstant", OperandWidths: []int{2}},
+	OpAdd:         {Name: "OpAdd", OperandWidths: []int{}},
+	OpPop:         {Name: "OpPop", OperandWidths: []int{}},
+	OpSub:         {Name: "OpSub", OperandWidths: []int{}},
+	OpMul:         {Name: "OpMul", OperandWidths: []int{}},
+	OpDiv:         {Name: "OpDiv", OperandWidths: []int{}},
+	OpTrue:        {Name: "OpTrue", OperandWidths: []int{}},
+	OpFalse:       {Name: "OpFalse", OperandWidths: []int{}},
+	OpEqual:       {Name: "OpEqual", OperandWidths: []int{}},
+	OpNotEqual:    {Name: "OpNotEqual", OperandWidths: []int{}},
+	OpGreaterThan: {Name: "OpGreaterThan", OperandWidths: []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {

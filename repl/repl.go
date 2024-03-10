@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"io"
 
-	"interpego/evaluator"
+	"interpego/compiler"
 	"interpego/lexer"
-	"interpego/object"
 	"interpego/parser"
+	"interpego/vm"
 )
 
 const PROMPT = ">> "
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
-	env := object.NewEnvironment()
-	builtins := evaluator.NewBuiltins()
+	// env := object.NewEnvironment()
+	// builtins := evaluator.NewBuiltins()
 	for {
 		fmt.Fprintf(out, PROMPT)
 
@@ -37,9 +37,21 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		eval := evaluator.Eval(builtins, program, env)
+		compiler := compiler.New()
+		err := compiler.Compile(program)
+		if err != nil {
+			fmt.Fprintf(out, "Woops! Compilation failed:\n %s\n", err)
+			continue
+		}
 
-		io.WriteString(out, "=> "+eval.Inspect())
+		vm := vm.New(compiler.Bytecode())
+		err = vm.Run()
+		if err != nil {
+			fmt.Fprintf(out, "Woops! Executing bytecode failed:\n %s\n", err)
+			continue
+		}
+
+		io.WriteString(out, "=> "+vm.LastPoppedStackElement().Inspect())
 		io.WriteString(out, "\n\n")
 	}
 }

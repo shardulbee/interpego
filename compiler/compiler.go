@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"fmt"
+
 	"interpego/ast"
 	"interpego/code"
 	"interpego/object"
@@ -27,7 +29,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
+		c.emit(code.OpPop)
 	case *ast.InfixExpression:
+		if node.Operator == "<" {
+			err := c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+
+			err = c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+			c.emit(code.OpGreaterThan)
+			return nil
+		}
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err
@@ -37,10 +53,39 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
+
+		switch node.Operator {
+		case "+":
+			c.emit(code.OpAdd)
+		case "-":
+			c.emit(code.OpSub)
+		case "*":
+			c.emit(code.OpMul)
+		case "/":
+			c.emit(code.OpDiv)
+		case "==":
+			c.emit(code.OpEqual)
+		case "!=":
+			c.emit(code.OpNotEqual)
+		case ">":
+			c.emit(code.OpGreaterThan)
+		case "<":
+			// TODO this should be reordered? how do i do that
+			c.emit(code.OpGreaterThan)
+
+		default:
+			return fmt.Errorf("unsupported operator %q", node.Operator)
+		}
 	case *ast.IntegerLiteral:
 		c.emit(code.OpConstant, c.addConstant(&object.Integer{Value: node.Value}))
 	case *ast.StringLiteral:
 		c.emit(code.OpConstant, c.addConstant(&object.String{Value: node.Value}))
+	case *ast.BooleanLiteral:
+		if node.Value {
+			c.emit(code.OpTrue)
+		} else {
+			c.emit(code.OpFalse)
+		}
 	case *ast.Program:
 		stmts := node.Statements
 		for _, stmt := range stmts {

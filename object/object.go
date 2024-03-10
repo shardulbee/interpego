@@ -41,6 +41,18 @@ func (i *Integer) Inspect() string {
 	return fmt.Sprintf("%d", i.Value)
 }
 
+type Addable interface {
+	Add(other Object) (Object, error)
+}
+
+func (i *Integer) Add(other Object) (Object, error) {
+	otherInt, ok := other.(*Integer)
+	if !ok {
+		return nil, fmt.Errorf("cannot add non-integer to integer")
+	}
+	return &Integer{Value: i.Value + otherInt.Value}, nil
+}
+
 type String struct {
 	Value string
 }
@@ -51,6 +63,14 @@ func (s *String) Type() ObjectType {
 
 func (s *String) Inspect() string {
 	return s.Value
+}
+
+func (s *String) Add(other Object) (Object, error) {
+	otherString, ok := other.(*String)
+	if !ok {
+		return nil, fmt.Errorf("cannot add non-string to string. other=%T (%+v)", other, other)
+	}
+	return &String{Value: s.Value + otherString.Value}, nil
 }
 
 type Boolean struct {
