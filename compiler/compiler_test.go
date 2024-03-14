@@ -245,3 +245,75 @@ func TestPrefixExpressions(t *testing.T) {
 	}
 	runCompilerTests(t, tests)
 }
+
+func TestIfExpressions(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             "if (true) { 1; }; 3333;",
+			expectedConstants: []interface{}{1, 3333},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),              // 0000
+				code.Make(code.OpJumpNotTruthy, 10), // 0001
+				code.Make(code.OpConstant, 0),       // 0004
+				code.Make(code.OpJump, 11),          // 0007
+				code.Make(code.OpNull),              // 0010
+				code.Make(code.OpPop),               // 0011
+				code.Make(code.OpConstant, 1),       // 0014
+				code.Make(code.OpPop),               // 0017
+			},
+		},
+		{
+			input:             "if (true) { 1; } else { 2; }; 3333;",
+			expectedConstants: []interface{}{1, 2, 3333},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),              // 0000
+				code.Make(code.OpJumpNotTruthy, 10), // 0001
+				code.Make(code.OpConstant, 0),       // 0004
+				code.Make(code.OpJump, 13),          // 0007
+				code.Make(code.OpConstant, 1),       // 0010
+				code.Make(code.OpPop),               // 0013
+				code.Make(code.OpConstant, 2),       // 0014
+				code.Make(code.OpPop),               // 0017
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
+func TestLetStatements(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             "let x = 1;",
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0), // this means take what is on the stack, and assign it to symbol 0
+			},
+		},
+		{
+			input:             "let x = 1; x;",
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0), // this means take what is on the stack, and assign it to symbol 0
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "let x = 1; let y = x + x; y",
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0), // this means take what is on the stack, and assign it to symbol 0
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpAdd),
+				code.Make(code.OpSetGlobal, 1),
+				code.Make(code.OpGetGlobal, 1),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}

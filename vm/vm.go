@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"encoding/binary"
 	"fmt"
 
 	"interpego/code"
@@ -12,6 +11,7 @@ import (
 var (
 	TRUE  = &object.Boolean{Value: true}
 	FALSE = &object.Boolean{Value: false}
+	NULL  = &object.Null{}
 )
 
 const STACK_SIZE = 2048
@@ -46,7 +46,7 @@ func (vm *VM) Run() error {
 			int := popped.(*object.Integer)
 			vm.push(&object.Integer{Value: -int.Value})
 		case code.OpConstant:
-			constantAddress := binary.BigEndian.Uint16(vm.instructions[ip+1:])
+			constantAddress := code.ReadUint16(vm.instructions[ip+1:])
 			err := vm.push(vm.constants[constantAddress])
 			if err != nil {
 				return err
@@ -74,6 +74,26 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpNull:
+			err := vm.push(NULL)
+			if err != nil {
+				return err
+			}
+		case code.OpJumpNotTruthy:
+			popped := vm.pop()
+
+			switch popped {
+			case FALSE:
+				jumpAddress := code.ReadUint16(vm.instructions[ip+1:])
+				ip = int(jumpAddress - 1)
+			case TRUE:
+				ip += 2
+			default:
+				return fmt.Errorf("conditional expression does not have expected type. expected=ast.Boolean, got=%T (%+v)", popped, popped)
+			}
+		case code.OpJump:
+			jumpAddress := code.ReadUint16(vm.instructions[ip+1:])
+			ip = int(jumpAddress - 1)
 		default:
 			return fmt.Errorf("unknown opcode encountered: %d", op)
 		}

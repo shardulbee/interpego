@@ -22,6 +22,11 @@ const (
 	OpGreaterThan
 	OpMinus
 	OpBang
+	OpJumpNotTruthy
+	OpJump
+	OpNull
+	OpSetGlobal
+	OpGetGlobal
 )
 
 type (
@@ -91,19 +96,24 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant:    {Name: "OpConstant", OperandWidths: []int{2}},
-	OpMinus:       {Name: "OpMinus", OperandWidths: []int{}},
-	OpBang:        {Name: "OpBang", OperandWidths: []int{}},
-	OpAdd:         {Name: "OpAdd", OperandWidths: []int{}},
-	OpPop:         {Name: "OpPop", OperandWidths: []int{}},
-	OpSub:         {Name: "OpSub", OperandWidths: []int{}},
-	OpMul:         {Name: "OpMul", OperandWidths: []int{}},
-	OpDiv:         {Name: "OpDiv", OperandWidths: []int{}},
-	OpTrue:        {Name: "OpTrue", OperandWidths: []int{}},
-	OpFalse:       {Name: "OpFalse", OperandWidths: []int{}},
-	OpEqual:       {Name: "OpEqual", OperandWidths: []int{}},
-	OpNotEqual:    {Name: "OpNotEqual", OperandWidths: []int{}},
-	OpGreaterThan: {Name: "OpGreaterThan", OperandWidths: []int{}},
+	OpConstant:      {Name: "OpConstant", OperandWidths: []int{2}},
+	OpMinus:         {Name: "OpMinus", OperandWidths: []int{}},
+	OpBang:          {Name: "OpBang", OperandWidths: []int{}},
+	OpAdd:           {Name: "OpAdd", OperandWidths: []int{}},
+	OpPop:           {Name: "OpPop", OperandWidths: []int{}},
+	OpSub:           {Name: "OpSub", OperandWidths: []int{}},
+	OpMul:           {Name: "OpMul", OperandWidths: []int{}},
+	OpDiv:           {Name: "OpDiv", OperandWidths: []int{}},
+	OpTrue:          {Name: "OpTrue", OperandWidths: []int{}},
+	OpFalse:         {Name: "OpFalse", OperandWidths: []int{}},
+	OpNull:          {Name: "OpNull", OperandWidths: []int{}},
+	OpEqual:         {Name: "OpEqual", OperandWidths: []int{}},
+	OpNotEqual:      {Name: "OpNotEqual", OperandWidths: []int{}},
+	OpGreaterThan:   {Name: "OpGreaterThan", OperandWidths: []int{}},
+	OpJumpNotTruthy: {Name: "OpJumpNotTruthy", OperandWidths: []int{2}},
+	OpJump:          {Name: "OpJump", OperandWidths: []int{2}},
+	OpSetGlobal:     {Name: "OpSetGlobal", OperandWidths: []int{2}},
+	OpGetGlobal:     {Name: "OpGetGlobal", OperandWidths: []int{2}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -119,7 +129,8 @@ func Lookup(op byte) (*Definition, error) {
 func Make(op Opcode, operands ...int) []byte {
 	def, ok := definitions[op]
 	if !ok {
-		return []byte{}
+		panic(fmt.Sprintf("unable create instruction for the following opcode: %d", op))
+		// return []byte{}
 	}
 
 	if len(operands) != len(def.OperandWidths) {
@@ -146,4 +157,8 @@ func Make(op Opcode, operands ...int) []byte {
 	}
 
 	return instructions
+}
+
+func ReadUint16(bytes []byte) uint16 {
+	return binary.BigEndian.Uint16(bytes)
 }
