@@ -7,6 +7,7 @@ import (
 
 	"interpego/compiler"
 	"interpego/lexer"
+	"interpego/object"
 	"interpego/parser"
 	"interpego/vm"
 )
@@ -15,6 +16,8 @@ const PROMPT = ">> "
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
+	symbols := compiler.NewSymbolTable()
+	globals := make([]object.Object, vm.GLOBALS_SIZE)
 	// env := object.NewEnvironment()
 	// builtins := evaluator.NewBuiltins()
 	for {
@@ -37,14 +40,14 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		compiler := compiler.New()
+		compiler := compiler.NewWithSymbols(symbols)
 		err := compiler.Compile(program)
 		if err != nil {
 			fmt.Fprintf(out, "Woops! Compilation failed:\n %s\n", err)
 			continue
 		}
 
-		vm := vm.New(compiler.Bytecode())
+		vm := vm.NewWithGlobals(globals, compiler.Bytecode())
 		err = vm.Run()
 		if err != nil {
 			fmt.Fprintf(out, "Woops! Executing bytecode failed:\n %s\n", err)

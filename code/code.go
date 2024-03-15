@@ -27,6 +27,8 @@ const (
 	OpNull
 	OpSetGlobal
 	OpGetGlobal
+	OpReturnValue
+	OpCall
 )
 
 type (
@@ -114,6 +116,8 @@ var definitions = map[Opcode]*Definition{
 	OpJump:          {Name: "OpJump", OperandWidths: []int{2}},
 	OpSetGlobal:     {Name: "OpSetGlobal", OperandWidths: []int{2}},
 	OpGetGlobal:     {Name: "OpGetGlobal", OperandWidths: []int{2}},
+	OpReturnValue:   {Name: "OpReturnValue", OperandWidths: []int{}},
+	OpCall:          {Name: "OpCall", OperandWidths: []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {

@@ -14,17 +14,37 @@ var (
 	NULL  = &object.Null{}
 )
 
-const STACK_SIZE = 2048
+const (
+	STACK_SIZE   = 2048
+	GLOBALS_SIZE = 65536
+)
 
 type VM struct {
 	stack        []object.Object
 	stackPointer int
 	instructions code.Instructions
 	constants    []object.Object
+	globals      []object.Object
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
-	return &VM{stack: make([]object.Object, STACK_SIZE), stackPointer: 0, instructions: bytecode.Instructions, constants: bytecode.Constants}
+	return &VM{
+		stack:        make([]object.Object, STACK_SIZE),
+		stackPointer: 0,
+		instructions: bytecode.Instructions,
+		constants:    bytecode.Constants,
+		globals:      make([]object.Object, GLOBALS_SIZE),
+	}
+}
+
+func NewWithGlobals(globals []object.Object, bytecode *compiler.Bytecode) *VM {
+	return &VM{
+		stack:        make([]object.Object, STACK_SIZE),
+		stackPointer: 0,
+		instructions: bytecode.Instructions,
+		constants:    bytecode.Constants,
+		globals:      globals,
+	}
 }
 
 func (vm *VM) Run() error {
@@ -94,6 +114,17 @@ func (vm *VM) Run() error {
 		case code.OpJump:
 			jumpAddress := code.ReadUint16(vm.instructions[ip+1:])
 			ip = int(jumpAddress - 1)
+		case code.OpSetGlobal:
+			globalsIdx := code.ReadUint16(vm.instructions[ip+1:])
+			vm.globals[globalsIdx] = vm.pop()
+			ip += 2
+		case code.OpGetGlobal:
+			globalsIdx := code.ReadUint16(vm.instructions[ip+1:])
+			err := vm.push(vm.globals[globalsIdx])
+			if err != nil {
+				return err
+			}
+			ip += 2
 		default:
 			return fmt.Errorf("unknown opcode encountered: %d", op)
 		}

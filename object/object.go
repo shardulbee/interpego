@@ -7,21 +7,23 @@ import (
 	"strings"
 
 	"interpego/ast"
+	"interpego/code"
 )
 
 type ObjectType string
 
 const (
-	INTEGER_TYPE  = "INTEGER"
-	BOOLEAN_TYPE  = "BOOLEAN"
-	NULL_TYPE     = "NULL"
-	RETURN_TYPE   = "RETURN"
-	ERROR_TYPE    = "ERROR"
-	FUNCTION_TYPE = "FUNCTION"
-	STRING_TYPE   = "STRING"
-	BUILTIN_TYPE  = "BUILTIN"
-	ARRAY_TYPE    = "ARRAY"
-	HASH_TYPE     = "HASH"
+	INTEGER_TYPE           = "INTEGER"
+	BOOLEAN_TYPE           = "BOOLEAN"
+	NULL_TYPE              = "NULL"
+	RETURN_TYPE            = "RETURN"
+	ERROR_TYPE             = "ERROR"
+	FUNCTION_TYPE          = "FUNCTION"
+	STRING_TYPE            = "STRING"
+	BUILTIN_TYPE           = "BUILTIN"
+	ARRAY_TYPE             = "ARRAY"
+	HASH_TYPE              = "HASH"
+	COMPILED_FUNCTION_TYPE = "COMPILED_FUNCTION"
 )
 
 type Object interface {
@@ -220,4 +222,13 @@ func (h *Hash) Inspect() string {
 
 	out.WriteString("})")
 	return out.String()
+}
+
+type CompiledFunction struct {
+	Instructions code.Instructions
+}
+
+func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_TYPE }
+func (cf *CompiledFunction) Inspect() string {
+	return fmt.Sprintf("CompiledFunction: [%p]", cf)
 }

@@ -21,14 +21,14 @@ func NewSymbolTable() *SymbolTable {
 	return &SymbolTable{numDefinitions: 0, store: make(map[string]Symbol)}
 }
 
-func (st *SymbolTable) Set(name string) Symbol {
+func (st *SymbolTable) Define(name string) Symbol {
 	newSymbol := Symbol{name, st.numDefinitions, GLOBAL_SCOPE}
 	st.numDefinitions += 1
 	st.store[name] = newSymbol
 	return newSymbol
 }
 
-func (st *SymbolTable) Get(name string) (Symbol, bool) {
+func (st *SymbolTable) Resolve(name string) (Symbol, bool) {
 	sym, ok := st.store[name]
 	return sym, ok
 }

@@ -13,3 +13,7 @@ Still to-implement in the compiler:
 - function calls/closures
 - for loops
 - builtins
+
+## TODO
+
+- Write tests for `SymbolTable`
