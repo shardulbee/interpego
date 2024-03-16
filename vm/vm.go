@@ -17,39 +17,80 @@ var (
 const (
 	STACK_SIZE   = 2048
 	GLOBALS_SIZE = 65536
+	FRAMES_SIZE  = 1024
 )
+
+type Frame struct {
+	fn *object.CompiledFunction
+	ip int
+}
+
+func (f *Frame) Instructions() code.Instructions {
+	return f.fn.Instructions
+}
+
+func NewFrame(fun *object.CompiledFunction) *Frame {
+	return &Frame{fn: fun, ip: 0}
+}
+
+func (vm *VM) currentFrame() *Frame {
+	return vm.frames[vm.framesIdx]
+}
+
+func (vm *VM) pushFrame(newFrame *Frame) {
+	vm.framesIdx++
+	vm.frames[vm.framesIdx] = newFrame
+}
+
+func (vm *VM) popFrame() *Frame {
+	popped := vm.frames[vm.framesIdx]
+	vm.framesIdx--
+	return popped
+}
 
 type VM struct {
 	stack        []object.Object
 	stackPointer int
-	instructions code.Instructions
+	frames       []*Frame
+	framesIdx    int
 	constants    []object.Object
 	globals      []object.Object
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
-	return &VM{
+	vm := &VM{
 		stack:        make([]object.Object, STACK_SIZE),
 		stackPointer: 0,
-		instructions: bytecode.Instructions,
+		frames:       make([]*Frame, FRAMES_SIZE),
+		framesIdx:    -1,
 		constants:    bytecode.Constants,
 		globals:      make([]object.Object, GLOBALS_SIZE),
 	}
+	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}))
+	return vm
 }
 
 func NewWithGlobals(globals []object.Object, bytecode *compiler.Bytecode) *VM {
-	return &VM{
+	vm := &VM{
 		stack:        make([]object.Object, STACK_SIZE),
 		stackPointer: 0,
-		instructions: bytecode.Instructions,
+		frames:       make([]*Frame, FRAMES_SIZE),
+		framesIdx:    -1,
 		constants:    bytecode.Constants,
 		globals:      globals,
 	}
+	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}))
+	return vm
 }
 
 func (vm *VM) Run() error {
-	for ip := 0; ip < len(vm.instructions); ip++ {
-		op := code.Opcode(vm.instructions[ip])
+	var ip int
+	var op code.Opcode
+	instructions := vm.currentFrame().Instructions()
+
+	for vm.currentFrame().ip < len(instructions) {
+		ip = vm.currentFrame().ip
+		op = code.Opcode(instructions[ip])
 		switch op {
 		case code.OpBang:
 			popped := vm.pop()
@@ -66,12 +107,12 @@ func (vm *VM) Run() error {
 			int := popped.(*object.Integer)
 			vm.push(&object.Integer{Value: -int.Value})
 		case code.OpConstant:
-			constantAddress := code.ReadUint16(vm.instructions[ip+1:])
+			constantAddress := code.ReadUint16(instructions[ip+1:])
 			err := vm.push(vm.constants[constantAddress])
 			if err != nil {
 				return err
 			}
-			ip += 2
+			vm.currentFrame().ip += 2
 		case code.OpAdd, code.OpMul, code.OpDiv, code.OpSub:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
@@ -104,30 +145,41 @@ func (vm *VM) Run() error {
 
 			switch popped {
 			case FALSE:
-				jumpAddress := code.ReadUint16(vm.instructions[ip+1:])
-				ip = int(jumpAddress - 1)
+				jumpAddress := code.ReadUint16(instructions[ip+1:])
+				vm.currentFrame().ip = int(jumpAddress - 1)
 			case TRUE:
-				ip += 2
+				vm.currentFrame().ip += 2
 			default:
 				return fmt.Errorf("conditional expression does not have expected type. expected=ast.Boolean, got=%T (%+v)", popped, popped)
 			}
 		case code.OpJump:
-			jumpAddress := code.ReadUint16(vm.instructions[ip+1:])
-			ip = int(jumpAddress - 1)
+			jumpAddress := code.ReadUint16(instructions[ip+1:])
+			vm.currentFrame().ip = int(jumpAddress - 1)
 		case code.OpSetGlobal:
-			globalsIdx := code.ReadUint16(vm.instructions[ip+1:])
+			globalsIdx := code.ReadUint16(instructions[ip+1:])
 			vm.globals[globalsIdx] = vm.pop()
-			ip += 2
+			vm.currentFrame().ip += 2
 		case code.OpGetGlobal:
-			globalsIdx := code.ReadUint16(vm.instructions[ip+1:])
+			globalsIdx := code.ReadUint16(instructions[ip+1:])
 			err := vm.push(vm.globals[globalsIdx])
 			if err != nil {
 				return err
 			}
-			ip += 2
+			vm.currentFrame().ip += 2
+		case code.OpCall:
+			popped := vm.pop()
+			fn, ok := popped.(*object.CompiledFunction)
+			if !ok {
+				return fmt.Errorf("calling non-function! type=%T", popped)
+			}
+			newFrame := NewFrame(fn)
+			vm.pushFrame(newFrame)
+			vm.Run()
+			vm.popFrame()
 		default:
 			return fmt.Errorf("unknown opcode encountered: %d", op)
 		}
+		vm.currentFrame().ip++
 	}
 	return nil
 }

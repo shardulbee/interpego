@@ -148,22 +148,22 @@ func TestIntegerArithmetic(t *testing.T) {
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 		program := parse(tt.input)
 		compiler := New()
 		err := compiler.Compile(program)
 		if err != nil {
-			t.Fatalf("compiler error: %s", err)
+			t.Fatalf("test[%d]: compiler error: %s", i, err)
 		}
 
 		bytecode := compiler.Bytecode()
 		err = testInstructions(tt.expectedInstructions, bytecode.Instructions)
 		if err != nil {
-			t.Errorf("testInstructions failed: %s", err)
+			t.Errorf("test[%d]: testInstructions failed: %s", i, err)
 		}
 		err = testConstants(tt.expectedConstants, bytecode.Constants)
 		if err != nil {
-			t.Errorf("testConstants failed: %s", err)
+			t.Errorf("test[%d]: testConstants failed: %s", i, err)
 		}
 	}
 }
@@ -358,7 +358,7 @@ func TestFunctions(t *testing.T) {
 		{
 			input: `fn() { }`, expectedConstants: []interface{}{
 				[]code.Instructions{
-					code.Make(code.OpReturnValue),
+					code.Make(code.OpReturn),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -385,7 +385,7 @@ func TestFunctions(t *testing.T) {
 		{
 			input: `let a = fn() { }`, expectedConstants: []interface{}{
 				[]code.Instructions{
-					code.Make(code.OpReturnValue),
+					code.Make(code.OpReturn),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -433,4 +433,46 @@ func TestFunctionCalls(t *testing.T) {
 		},
 	}
 	runCompilerTests(t, tests)
+}
+
+func TestCompilerScopes(t *testing.T) {
+	compiler := New()
+	if compiler.scopeIdx != 0 {
+		t.Errorf("scopeIdx wrong. got=%d, want=%d", compiler.scopeIdx, 0)
+	}
+	compiler.emit(code.OpMul)
+	compiler.enterScope()
+	if compiler.scopeIdx != 1 {
+		t.Errorf("scopeIdx wrong. got=%d, want=%d", compiler.scopeIdx, 1)
+	}
+	compiler.emit(code.OpSub)
+	if len(compiler.scopes[compiler.scopeIdx].instructions) != 1 {
+		t.Errorf("instructions length wrong. got=%d",
+			len(compiler.scopes[compiler.scopeIdx].instructions))
+	}
+	last := compiler.scopes[compiler.scopeIdx].lastInstruction
+	if last.Opcode != code.OpSub {
+		t.Errorf("lastInstruction.Opcode wrong. got=%d, want=%d",
+			last.Opcode, code.OpSub)
+	}
+	compiler.leaveScope()
+	if compiler.scopeIdx != 0 {
+		t.Errorf("scopeIdx wrong. got=%d, want=%d",
+			compiler.scopeIdx, 0)
+	}
+	compiler.emit(code.OpAdd)
+	if len(compiler.scopes[compiler.scopeIdx].instructions) != 2 {
+		t.Errorf("instructions length wrong. got=%d",
+			len(compiler.scopes[compiler.scopeIdx].instructions))
+	}
+	last = compiler.scopes[compiler.scopeIdx].lastInstruction
+	if last.Opcode != code.OpAdd {
+		t.Errorf("lastInstruction.Opcode wrong. got=%d, want=%d",
+			last.Opcode, code.OpAdd)
+	}
+	previous := compiler.scopes[compiler.scopeIdx].prevInstruction
+	if previous.Opcode != code.OpMul {
+		t.Errorf("prevInstruction.Opcode wrong. got=%d, want=%d",
+			previous.Opcode, code.OpMul)
+	}
 }

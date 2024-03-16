@@ -79,6 +79,14 @@ func testBooleanObject(actual object.Object, expected bool) error {
 	return nil
 }
 
+func testNullObject(actual object.Object) error {
+	_, ok := actual.(*object.Null)
+	if !ok {
+		return fmt.Errorf("actual is not Null. got=%T (%+v)", actual, actual)
+	}
+	return nil
+}
+
 func testExpectedObject(t *testing.T, actual object.Object, expected interface{}) {
 	t.Helper()
 	switch expected := expected.(type) {
@@ -97,6 +105,7 @@ func testExpectedObject(t *testing.T, actual object.Object, expected interface{}
 		if err != nil {
 			t.Errorf("testBooleanObject failed: %s", err)
 		}
+	case nil:
 
 	default:
 		t.Errorf("unhandled test case in testExpectedObject: %T (%+v)", expected, expected)
@@ -180,6 +189,79 @@ func TestGlobalLetStatements(t *testing.T) {
 		{"let one = 1; one", 1},
 		{"let one = 1; let two = 2; one + two", 3},
 		{"let one = 1; let two = one + one; one + two", 3},
+	}
+	runVmTests(t, tests)
+}
+
+func TestFunctionCalls(t *testing.T) {
+	tests := []vmTestCase{
+		{"fn() { 1 }()", 1},
+		{"fn() { return 1 }()", 1},
+		{"fn() { }()", nil},
+		{"fn() { fn() { 2 }() + 1 }()", 3},
+		{"let inner = fn() { 2 }; let outer = fn() { inner() * 10 }; outer()", 20},
+		{
+			input: `
+           let fivePlusTen = fn() { 5 + 10; };
+           fivePlusTen();
+           `,
+			expected: 15,
+		},
+		{"let inner = fn() { 2 }; let outer = fn() { inner }; outer()();", 2},
+		{
+			input: `
+           let one = fn() { 1; };
+           let two = fn() { 2; };
+           one() + two()
+           `,
+			expected: 3,
+		},
+		{
+			input: `
+           let a = fn() { 1 };
+           let b = fn() { a() + 1 };
+           let c = fn() { b() + 1 };
+           c();
+           `,
+			expected: 3,
+		},
+		{
+			input: `
+           let earlyExit = fn() { return 99; 100; };
+           earlyExit();
+           `,
+			expected: 99,
+		},
+		{
+			input: `
+           let earlyExit = fn() { return 99; return 100; };
+           earlyExit();
+           `,
+			expected: 99,
+		},
+		{
+			input: `
+           let noReturn = fn() { };
+           noReturn();
+           `,
+			expected: nil,
+		},
+		{
+			input: `
+           let noReturn = fn() { };
+           let noReturnTwo = fn() { noReturn(); };
+           noReturn();
+           noReturnTwo();
+           `, expected: nil,
+		},
+		{
+			input: `
+           let returnsOne = fn() { 1; };
+           let returnsOneReturner = fn() { returnsOne; };
+           returnsOneReturner()();
+           `,
+			expected: 1,
+		},
 	}
 	runVmTests(t, tests)
 }

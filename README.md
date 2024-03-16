@@ -15,5 +15,3 @@ Still to-implement in the compiler:
 - builtins
 
 ## TODO
-
-- Write tests for `SymbolTable`

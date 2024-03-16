@@ -27,6 +27,7 @@ const (
 	OpNull
 	OpSetGlobal
 	OpGetGlobal
+	OpReturn
 	OpReturnValue
 	OpCall
 )
@@ -117,6 +118,7 @@ var definitions = map[Opcode]*Definition{
 	OpSetGlobal:     {Name: "OpSetGlobal", OperandWidths: []int{2}},
 	OpGetGlobal:     {Name: "OpGetGlobal", OperandWidths: []int{2}},
 	OpReturnValue:   {Name: "OpReturnValue", OperandWidths: []int{}},
+	OpReturn:        {Name: "OpReturn", OperandWidths: []int{}},
 	OpCall:          {Name: "OpCall", OperandWidths: []int{}},
 }
 
