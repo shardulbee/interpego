@@ -174,14 +174,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		if c.lastInstructionIs(code.OpPop) {
-			// c.removeLastPop()
-			newIns := code.Make(code.OpReturnValue)
-			c.replaceInstruction(c.scopes[c.scopeIdx].lastInstruction.Position, newIns)
-			c.scopes[c.scopeIdx].lastInstruction.Opcode = code.OpReturnValue
+			c.removeLastPop()
+			// newIns := code.Make(code.OpReturnValue)
+			// c.replaceInstruction(c.scopes[c.scopeIdx].lastInstruction.Position, newIns)
+			// c.scopes[c.scopeIdx].lastInstruction.Opcode = code.OpReturnValue
 		}
-		if !c.lastInstructionIs(code.OpReturnValue) {
-			c.emit(code.OpReturn)
-		}
+		// if !c.lastInstructionIs(code.OpReturnValue) {
+		// 	c.emit(code.OpReturn)
+		// }
 		newIns := c.leaveScope()
 		c.emit(code.OpConstant, c.addConstant(&object.CompiledFunction{Instructions: newIns}))
 	case *ast.ReturnStatement:
@@ -189,7 +189,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
-		c.emit(code.OpReturnValue)
+		// c.emit(code.OpReturnValue)
 	case *ast.BooleanLiteral:
 		if node.Value {
 			c.emit(code.OpTrue)

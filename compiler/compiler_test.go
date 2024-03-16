@@ -331,7 +331,7 @@ func TestFunctions(t *testing.T) {
 					code.Make(code.OpConstant, 0),
 					code.Make(code.OpConstant, 1),
 					code.Make(code.OpAdd),
-					code.Make(code.OpReturnValue),
+					// code.Make(code.OpReturnValue),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -347,7 +347,7 @@ func TestFunctions(t *testing.T) {
 					code.Make(code.OpConstant, 0),
 					code.Make(code.OpConstant, 1),
 					code.Make(code.OpAdd),
-					code.Make(code.OpReturnValue),
+					// code.Make(code.OpReturnValue),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -358,7 +358,7 @@ func TestFunctions(t *testing.T) {
 		{
 			input: `fn() { }`, expectedConstants: []interface{}{
 				[]code.Instructions{
-					code.Make(code.OpReturn),
+					// code.Make(code.OpReturn),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -374,7 +374,7 @@ func TestFunctions(t *testing.T) {
 					code.Make(code.OpConstant, 0),
 					code.Make(code.OpPop),
 					code.Make(code.OpConstant, 1),
-					code.Make(code.OpReturnValue),
+					// code.Make(code.OpReturnValue),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -385,7 +385,7 @@ func TestFunctions(t *testing.T) {
 		{
 			input: `let a = fn() { }`, expectedConstants: []interface{}{
 				[]code.Instructions{
-					code.Make(code.OpReturn),
+					// code.Make(code.OpReturn),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -405,7 +405,7 @@ func TestFunctionCalls(t *testing.T) {
 				5,
 				[]code.Instructions{
 					code.Make(code.OpConstant, 0),
-					code.Make(code.OpReturnValue),
+					// code.Make(code.OpReturnValue),
 				},
 			},
 			expectedInstructions: []code.Instructions{
@@ -420,7 +420,7 @@ func TestFunctionCalls(t *testing.T) {
 				5,
 				[]code.Instructions{
 					code.Make(code.OpConstant, 0),
-					code.Make(code.OpReturnValue),
+					// code.Make(code.OpReturnValue),
 				},
 			},
 			expectedInstructions: []code.Instructions{
