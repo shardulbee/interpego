@@ -225,6 +225,7 @@ func (h *Hash) Inspect() string {
 }
 
 type CompiledFunction struct {
+	NumLocals    int
 	Instructions code.Instructions
 }
 

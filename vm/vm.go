@@ -21,16 +21,17 @@ const (
 )
 
 type Frame struct {
-	fn *object.CompiledFunction
-	ip int
+	fn        *object.CompiledFunction
+	ip        int
+	stackBase int
 }
 
 func (f *Frame) Instructions() code.Instructions {
 	return f.fn.Instructions
 }
 
-func NewFrame(fun *object.CompiledFunction) *Frame {
-	return &Frame{fn: fun, ip: 0}
+func NewFrame(fun *object.CompiledFunction, stackBase int) *Frame {
+	return &Frame{fn: fun, ip: 0, stackBase: stackBase}
 }
 
 func (vm *VM) currentFrame() *Frame {
@@ -66,7 +67,7 @@ func New(bytecode *compiler.Bytecode) *VM {
 		constants:    bytecode.Constants,
 		globals:      make([]object.Object, GLOBALS_SIZE),
 	}
-	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}))
+	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}, 0))
 	return vm
 }
 
@@ -79,17 +80,18 @@ func NewWithGlobals(globals []object.Object, bytecode *compiler.Bytecode) *VM {
 		constants:    bytecode.Constants,
 		globals:      globals,
 	}
-	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}))
+	vm.pushFrame(NewFrame(&object.CompiledFunction{Instructions: bytecode.Instructions}, 0))
 	return vm
 }
 
 func (vm *VM) Run() error {
 	var ip int
+	var instructions code.Instructions
 	var op code.Opcode
-	instructions := vm.currentFrame().Instructions()
 
-	for vm.currentFrame().ip < len(instructions) {
+	for vm.currentFrame().ip < len(vm.currentFrame().Instructions()) {
 		ip = vm.currentFrame().ip
+		instructions = vm.currentFrame().Instructions()
 		op = code.Opcode(instructions[ip])
 		switch op {
 		case code.OpBang:
@@ -108,6 +110,7 @@ func (vm *VM) Run() error {
 			vm.push(&object.Integer{Value: -int.Value})
 		case code.OpConstant:
 			constantAddress := code.ReadUint16(instructions[ip+1:])
+
 			err := vm.push(vm.constants[constantAddress])
 			if err != nil {
 				return err
@@ -166,16 +169,40 @@ func (vm *VM) Run() error {
 				return err
 			}
 			vm.currentFrame().ip += 2
+		case code.OpSetLocal:
+			localsOffset := code.ReadUint8(instructions[ip+1:])
+			vm.currentFrame().ip += 1
+
+			vm.stack[vm.currentFrame().stackBase+int(localsOffset)] = vm.pop()
+		case code.OpGetLocal:
+			localsOffset := instructions[ip+1]
+			vm.currentFrame().ip += 1
+			err := vm.push(vm.stack[vm.currentFrame().stackBase+int(localsOffset)])
+			if err != nil {
+				return err
+			}
 		case code.OpCall:
 			popped := vm.pop()
 			fn, ok := popped.(*object.CompiledFunction)
 			if !ok {
 				return fmt.Errorf("calling non-function! type=%T", popped)
 			}
-			newFrame := NewFrame(fn)
+			newFrame := NewFrame(fn, vm.stackPointer)
+			vm.stackPointer += fn.NumLocals
 			vm.pushFrame(newFrame)
-			vm.Run()
-			vm.popFrame()
+			vm.currentFrame().ip -= 1 // we don't want to default skip the ip because we jumped to a new frame which is at zero
+		case code.OpReturnValue:
+			popped := vm.pop()
+			frame := vm.popFrame()
+			vm.stackPointer = frame.stackBase
+
+			err := vm.push(popped)
+			if err != nil {
+				return err
+			}
+		case code.OpReturn:
+			frame := vm.popFrame()
+			vm.stackPointer = frame.stackBase
 		default:
 			return fmt.Errorf("unknown opcode encountered: %d", op)
 		}

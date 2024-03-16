@@ -63,13 +63,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		sym := c.symbolTable.Define(node.Name.Value)
-		c.emit(code.OpSetGlobal, sym.Index)
+		if sym.Scope == GLOBAL_SCOPE {
+			c.emit(code.OpSetGlobal, sym.Index)
+		} else {
+			c.emit(code.OpSetLocal, sym.Index)
+		}
 	case *ast.Identifier:
 		sym, ok := c.symbolTable.Resolve(node.Value)
 		if !ok {
 			return fmt.Errorf("unable to resolve identifier: ident=%s", node.Value)
 		}
-		c.emit(code.OpGetGlobal, sym.Index)
+		if sym.Scope == GLOBAL_SCOPE {
+			c.emit(code.OpGetGlobal, sym.Index)
+		} else {
+			c.emit(code.OpGetLocal, sym.Index)
+		}
 	case *ast.InfixExpression:
 		if node.Operator == "<" {
 			err := c.Compile(node.Right)
@@ -174,22 +182,22 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		if c.lastInstructionIs(code.OpPop) {
-			c.removeLastPop()
-			// newIns := code.Make(code.OpReturnValue)
-			// c.replaceInstruction(c.scopes[c.scopeIdx].lastInstruction.Position, newIns)
-			// c.scopes[c.scopeIdx].lastInstruction.Opcode = code.OpReturnValue
+			newIns := code.Make(code.OpReturnValue)
+			c.replaceInstruction(c.scopes[c.scopeIdx].lastInstruction.Position, newIns)
+			c.scopes[c.scopeIdx].lastInstruction.Opcode = code.OpReturnValue
 		}
-		// if !c.lastInstructionIs(code.OpReturnValue) {
-		// 	c.emit(code.OpReturn)
-		// }
+		if !c.lastInstructionIs(code.OpReturnValue) {
+			c.emit(code.OpReturn)
+		}
+		numLocals := c.symbolTable.numDefinitions
 		newIns := c.leaveScope()
-		c.emit(code.OpConstant, c.addConstant(&object.CompiledFunction{Instructions: newIns}))
+		c.emit(code.OpConstant, c.addConstant(&object.CompiledFunction{Instructions: newIns, NumLocals: numLocals}))
 	case *ast.ReturnStatement:
 		err := c.Compile(node.ReturnValue)
 		if err != nil {
 			return err
 		}
-		// c.emit(code.OpReturnValue)
+		c.emit(code.OpReturnValue)
 	case *ast.BooleanLiteral:
 		if node.Value {
 			c.emit(code.OpTrue)
@@ -290,6 +298,7 @@ func (c *Compiler) enterScope() {
 		lastInstruction: EmittedInstruction{},
 		prevInstruction: EmittedInstruction{},
 	}
+	c.symbolTable = NewNestedSymbolTable(c.symbolTable)
 	c.scopes = append(c.scopes, newScope)
 	c.scopeIdx++
 }
@@ -301,6 +310,7 @@ func (c *Compiler) leaveScope() code.Instructions {
 	ins := c.currentInstructions()
 	c.scopes = c.scopes[:c.scopeIdx]
 	c.scopeIdx--
+	c.symbolTable = c.symbolTable.outer
 	return ins
 }
 
