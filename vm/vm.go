@@ -101,6 +101,7 @@ func (vm *VM) Run() error {
 			}
 			bool := popped.(*object.Boolean)
 			vm.push(nativeBoolToBooleanObject(!bool.Value))
+			vm.currentFrame().ip += 1
 		case code.OpMinus:
 			popped := vm.pop()
 			if popped.Type() != object.INTEGER_TYPE {
@@ -108,6 +109,7 @@ func (vm *VM) Run() error {
 			}
 			int := popped.(*object.Integer)
 			vm.push(&object.Integer{Value: -int.Value})
+			vm.currentFrame().ip += 1
 		case code.OpConstant:
 			constantAddress := code.ReadUint16(instructions[ip+1:])
 
@@ -115,72 +117,76 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
-			vm.currentFrame().ip += 2
+			vm.currentFrame().ip += 3
 		case code.OpAdd, code.OpMul, code.OpDiv, code.OpSub:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
 				return err
 			}
+			vm.currentFrame().ip += 1
 		case code.OpEqual, code.OpNotEqual, code.OpGreaterThan:
 			err := vm.executeComparison(op)
 			if err != nil {
 				return err
 			}
+			vm.currentFrame().ip += 1
 		case code.OpPop:
 			vm.pop()
+			vm.currentFrame().ip += 1
 		case code.OpTrue:
 			err := vm.push(TRUE)
 			if err != nil {
 				return err
 			}
+			vm.currentFrame().ip += 1
 		case code.OpFalse:
 			err := vm.push(FALSE)
 			if err != nil {
 				return err
 			}
+			vm.currentFrame().ip += 1
 		case code.OpNull:
 			err := vm.push(NULL)
 			if err != nil {
 				return err
 			}
+			vm.currentFrame().ip += 1
 		case code.OpJumpNotTruthy:
 			popped := vm.pop()
 
 			switch popped {
 			case FALSE:
 				jumpAddress := code.ReadUint16(instructions[ip+1:])
-				vm.currentFrame().ip = int(jumpAddress - 1)
+				vm.currentFrame().ip = int(jumpAddress)
 			case TRUE:
-				vm.currentFrame().ip += 2
+				vm.currentFrame().ip += 3
 			default:
 				return fmt.Errorf("conditional expression does not have expected type. expected=ast.Boolean, got=%T (%+v)", popped, popped)
 			}
 		case code.OpJump:
 			jumpAddress := code.ReadUint16(instructions[ip+1:])
-			vm.currentFrame().ip = int(jumpAddress - 1)
+			vm.currentFrame().ip = int(jumpAddress)
 		case code.OpSetGlobal:
-			globalsIdx := code.ReadUint16(instructions[ip+1:])
-			vm.globals[globalsIdx] = vm.pop()
-			vm.currentFrame().ip += 2
+			vm.globals[code.ReadUint16(instructions[ip+1:])] = vm.pop()
+			vm.currentFrame().ip += 3
 		case code.OpGetGlobal:
-			globalsIdx := code.ReadUint16(instructions[ip+1:])
-			err := vm.push(vm.globals[globalsIdx])
+			err := vm.push(vm.globals[code.ReadUint16(instructions[ip+1:])])
 			if err != nil {
 				return err
 			}
-			vm.currentFrame().ip += 2
+			vm.currentFrame().ip += 3
 		case code.OpSetLocal:
 			localsOffset := code.ReadUint8(instructions[ip+1:])
-			vm.currentFrame().ip += 1
 
 			vm.stack[vm.currentFrame().stackBase+int(localsOffset)] = vm.pop()
+			vm.currentFrame().ip += 2
 		case code.OpGetLocal:
 			localsOffset := instructions[ip+1]
-			vm.currentFrame().ip += 1
 			err := vm.push(vm.stack[vm.currentFrame().stackBase+int(localsOffset)])
 			if err != nil {
 				return err
 			}
+			vm.currentFrame().ip += 2
 		case code.OpCall:
 			popped := vm.pop()
 			fn, ok := popped.(*object.CompiledFunction)
@@ -189,8 +195,8 @@ func (vm *VM) Run() error {
 			}
 			newFrame := NewFrame(fn, vm.stackPointer)
 			vm.stackPointer += fn.NumLocals
+			vm.currentFrame().ip += 1
 			vm.pushFrame(newFrame)
-			vm.currentFrame().ip -= 1 // we don't want to default skip the ip because we jumped to a new frame which is at zero
 		case code.OpReturnValue:
 			popped := vm.pop()
 			frame := vm.popFrame()
@@ -206,7 +212,6 @@ func (vm *VM) Run() error {
 		default:
 			return fmt.Errorf("unknown opcode encountered: %d", op)
 		}
-		vm.currentFrame().ip++
 	}
 	return nil
 }
