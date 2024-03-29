@@ -123,7 +123,7 @@ var definitions = map[Opcode]*Definition{
 	OpGetGlobal:     {Name: "OpGetGlobal", OperandWidths: []int{2}},
 	OpReturnValue:   {Name: "OpReturnValue", OperandWidths: []int{}},
 	OpReturn:        {Name: "OpReturn", OperandWidths: []int{}},
-	OpCall:          {Name: "OpCall", OperandWidths: []int{}},
+	OpCall:          {Name: "OpCall", OperandWidths: []int{1}},
 	OpSetLocal:      {Name: "OpSetLocal", OperandWidths: []int{1}},
 	OpGetLocal:      {Name: "OpGetLocal", OperandWidths: []int{1}},
 }

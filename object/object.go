@@ -225,8 +225,9 @@ func (h *Hash) Inspect() string {
 }
 
 type CompiledFunction struct {
-	NumLocals    int
-	Instructions code.Instructions
+	NumLocals     int
+	NumParameters int
+	Instructions  code.Instructions
 }
 
 func (cf *CompiledFunction) Type() ObjectType { return COMPILED_FUNCTION_TYPE }

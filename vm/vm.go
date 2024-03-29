@@ -188,14 +188,58 @@ func (vm *VM) Run() error {
 			}
 			vm.currentFrame().ip += 2
 		case code.OpCall:
+			numArgs := code.ReadUint8(instructions[ip+1:])
+			vm.currentFrame().ip += 2
+
+			// given the following fn(x, y) { let a = 1; x + y + a }(2, 3) the stack looks as follows:
+			// [CompiledFunction, 2, 3, null, null, null, null, ...]
+			//                           ^------ stackpointer
+
+			// we want it to look like the following when the function starts executing:
+			// [2, 3, null, null, null, null, ...]
+			//  ^------ stackBase
+			//                ^------- stackPointer
+
+			var args []object.Object
+			if numArgs > 0 {
+				args = make([]object.Object, numArgs)
+				for i := int(numArgs) - 1; i >= 0; i-- {
+					popped := vm.pop()
+					args[i] = popped
+				}
+
+			}
+
+			// the stack now looks like
+			// [CompiledFunction, null, null, null, null, null, null, ...]
+			//                     ^------ stackpointer
 			popped := vm.pop()
 			fn, ok := popped.(*object.CompiledFunction)
 			if !ok {
 				return fmt.Errorf("calling non-function! type=%T", popped)
 			}
+
+			// the stack is now empty
+			// [null, null, null, null, null, null, null, ...]
+			//    ^------ stackpointer
+			// this should also be the stack base, since stackBase + 0 is the first local (which is the first fn param if it exists)
 			newFrame := NewFrame(fn, vm.stackPointer)
-			vm.stackPointer += fn.NumLocals
-			vm.currentFrame().ip += 1
+
+			if numArgs > 0 {
+				for i := 0; i < int(numArgs); i++ {
+					vm.push(args[i])
+				}
+			}
+			// the stack now looks like
+			// [2, 3, null, null, null, null, null, ...]
+			//  ^------ stackBase
+			//          ^------ stackPointer
+			vm.stackPointer += fn.NumLocals - int(numArgs)
+
+			// the stack now looks like
+			// [2, 3, null, null, null, null, null, ...]
+			//  ^------- stackBase
+			//               ^------ stackpointer
 			vm.pushFrame(newFrame)
 		case code.OpReturnValue:
 			popped := vm.pop()
